@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Absen Pembelajaran Jarak Jauh - Pendidikan Kewarganegaraan</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Backend sepenuhnya Cloudflare Pages Functions + D1. -->
+    <!-- Alpine.js for lightweight state management -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Custom Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#0000FF', // Primary Royal Blue
+                            600: '#0000cc',
+                            700: '#000099',
+                            DEFAULT: '#0000FF'
+                        },
+                        lemon: {
+                            300: '#facc15',
+                            400: '#e2ff00',
+                            500: '#ccff00', // Stabilo Lemon Yellow
+                            DEFAULT: '#ccff00'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'luxury': '0 20px 40px -15px rgba(0, 0, 255, 0.12), 0 0 15px 0 rgba(204, 255, 0, 0.15)',
+                        'glow': '0 0 25px rgba(0, 0, 255, 0.35)',
+                        'lemon-glow': '0 0 20px rgba(204, 255, 0, 0.5)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #FFFFFF;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            color: #1e293b;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #0000FF;
+            border-radius: 9999px;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 0, 255, 0.1);
+        }
+
+        .gradient-brand {
+            background: linear-gradient(135deg, #0000FF 0%, #1e40af 100%);
+        }
+
+        .gradient-lemon {
+            background: linear-gradient(135deg, #ccff00 0%, #e2ff00 100%);
+        }
+
+        .badge-lemon {
+            background-color: #ccff00;
+            color: #0f172a;
+        }
+        [x-cloak] { display: none !important; }
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body x-data="appData()" x-init="initApp()" class="min-h-screen flex flex-col bg-white">
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-blue-100/80 shadow-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-20">
+                <!-- Logo & Brand Name -->
+                <div class="flex items-center gap-3">
+                    <div class="p-1.5 sm:p-2 bg-white rounded-2xl shadow-md border border-blue-100 flex items-center justify-center relative overflow-hidden">
+                        <div class="absolute inset-0 bg-[#ccff00]/10 pointer-events-none"></div>
+                        <img src="https://i.ibb.co.com/cXMmKG7M/logo-smp6.png" 
+                             class="h-11 sm:h-14 w-auto object-contain drop-shadow-sm relative z-10" 
+                             alt="Logo SMPN 6 Manokwari" 
+                             onerror="if (this.src.includes('ibb.co.com')) { this.src='https://i.ibb.co/cXMmKG7M/logo-smp6.png'; } else { this.onerror=null; this.src='https://placehold.co/120x120/0000FF/ffffff?text=SMPN+6'; }">
+                    </div>
+                    <div>
+                        <span class="text-sm sm:text-xl font-black tracking-tight text-slate-900 block leading-tight">Absen <span class="text-[#0000FF]">Pembelajaran Jarak Jauh</span></span>
+                        <div class="flex items-center gap-1.5 mt-0.5">
+                            <span class="text-[10px] sm:text-xs font-black px-2.5 py-0.5 rounded-full bg-[#ccff00] text-slate-900 border border-yellow-300 shadow-xs uppercase tracking-wide">Pendidikan Kewarganegaraan</span>
+                            <!-- Cloud Status Indicator -->
+                            <span x-show="isCloudConnected" class="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span>Cloud Sync</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs / Role Switcher -->
+                <div class="flex items-center gap-1.5 sm:gap-2">
+                    <button @click="switchTab('student')" 
+                            :class="activeTab === 'student' ? 'bg-[#0000FF] text-white shadow-md shadow-blue-500/25 ring-2 ring-[#ccff00]/60' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                            class="px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all duration-200 flex items-center gap-1.5">
+                        <i data-lucide="user-check" class="w-4 h-4"></i>
+                        <span>Portal Murid</span>
+                    </button>
+                    
+                    <button @click="openTeacherAuthModal()" 
+                            :class="activeTab === 'teacher' ? 'bg-[#0000FF] text-white shadow-md shadow-blue-500/25 ring-2 ring-[#ccff00]/60' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                            class="px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-extrabold transition-all duration-200 flex items-center gap-1.5">
+                        <i data-lucide="shield-check" class="w-4 h-4"></i>
+                        <span>Portal Guru</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- Banner Info Jam & Tanggal -->
+        <div class="mb-5 sm:mb-6 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-blue-50 via-yellow-50/40 to-white border border-blue-100 flex flex-row items-center justify-between gap-2 shadow-xs text-xs sm:text-sm relative overflow-hidden">
+            <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-[#ccff00]"></div>
+            <div class="flex items-center gap-2.5 pl-2">
+                <div class="p-2 sm:p-2.5 bg-white rounded-xl text-[#0000FF] shadow-xs border border-blue-100 shrink-0">
+                    <i data-lucide="calendar" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                </div>
+                <div>
+                    <div class="text-[10px] sm:text-xs text-slate-500 font-semibold">Presensi Pembelajaran Hari ini (WIT • Papua Barat)</div>
+                    <div class="text-xs sm:text-base font-bold text-slate-800 leading-tight" x-text="currentDateString"></div>
+                </div>
+            </div>
+            <div class="flex items-center gap-1.5 text-[#0000FF] font-mono font-black bg-white px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-blue-100 text-xs sm:text-sm shadow-xs shrink-0">
+                <i data-lucide="clock" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0000FF]"></i>
+                <span x-text="currentTimeString"></span>
+            </div>
+        </div>
+
+        <div x-cloak x-show="connectionError" class="mb-4 px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 text-xs font-semibold" x-text="connectionError"></div>
+        <div x-cloak x-show="!isCloudConnected && !connectionError" class="mb-4 px-4 py-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-xs font-semibold">Sedang menghubungkan ke Cloudflare. Pengiriman absensi tersedia saat server siap.</div>
+
+        <!-- ========================================================================= -->
+        <!-- VIEW 1: PORTAL MURID -->
+        <!-- ========================================================================= -->
+        <div x-show="activeTab === 'student'" x-transition:enter="transition ease-out duration-300 transform opacity-0 scale-95" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100">
+            <div class="max-w-md sm:max-w-xl mx-auto px-1 sm:px-0">
+                <div class="bg-white rounded-3xl p-5 sm:p-8 shadow-luxury border border-blue-100 relative overflow-hidden">
+                    <!-- Background Accents -->
+                    <div class="absolute top-0 right-0 -mt-8 -mr-8 w-36 h-36 sm:w-48 sm:h-48 bg-[#ccff00]/20 rounded-full blur-2xl pointer-events-none"></div>
+                    <div class="absolute bottom-0 left-0 -mb-8 -ml-8 w-36 h-36 sm:w-48 sm:h-48 bg-[#0000FF]/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                    <!-- Luxury Header Logo & Title -->
+                    <div class="text-center mb-6 flex flex-col items-center relative z-10">
+                        <div class="p-3 sm:p-4 bg-gradient-to-b from-blue-50/90 via-white to-yellow-50/50 rounded-3xl shadow-lg border border-blue-200/80 mb-3 inline-block group hover:scale-105 transition-transform duration-300 relative">
+                            <div class="absolute -inset-1 bg-gradient-to-r from-[#0000FF] via-[#ccff00] to-[#0000FF] rounded-3xl opacity-25 group-hover:opacity-50 blur-sm transition duration-300 pointer-events-none"></div>
+                            <img src="https://i.ibb.co.com/cXMmKG7M/logo-smp6.png" 
+                                 class="h-20 sm:h-28 w-auto object-contain drop-shadow-md relative z-10" 
+                                 alt="Logo SMPN 6 Manokwari" 
+                                 onerror="if (this.src.includes('ibb.co.com')) { this.src='https://i.ibb.co/cXMmKG7M/logo-smp6.png'; } else { this.onerror=null; this.src='https://placehold.co/160x160/0000FF/ffffff?text=SMPN+6'; }">
+                        </div>
+
+                        <!-- Subject Tag -->
+                        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#ccff00] text-slate-900 text-xs font-black mb-2 shadow-xs border border-yellow-300">
+                            <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+                            <span>Pendidikan Kewarganegaraan</span>
+                        </div>
+
+                        <h2 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Absen Pembelajaran Jarak Jauh</h2>
+                        <p class="text-slate-500 text-xs sm:text-sm mt-1 max-w-xs sm:max-w-md leading-relaxed">Pilih kelas dan nama Anda untuk mengisi daftar hadir presensi pembelajaran online hari ini.</p>
+                    </div>
+
+                    <!-- Attendance Form -->
+                    <div class="mb-5 p-4 rounded-2xl border border-blue-200 bg-blue-50/60" x-show="!isRosterUnlocked" x-cloak>
+                        <label class="block text-sm font-extrabold text-slate-800 mb-2">Kode Akses Kelas</label>
+                        <p class="text-xs text-slate-600 mb-3">Masukkan kode dari guru untuk menampilkan daftar siswa.</p>
+                        <div class="flex gap-2">
+                            <input type="password" x-model="classroomCode" @keydown.enter.prevent="unlockRoster()" autocomplete="off" placeholder="Kode akses kelas" class="min-w-0 flex-1 px-3 py-3 bg-white border border-blue-200 rounded-xl text-sm font-semibold">
+                            <button type="button" @click="unlockRoster()" :disabled="isUnlockingRoster" class="px-4 py-3 bg-[#0000FF] text-white rounded-xl font-bold text-xs disabled:opacity-50">Buka Daftar</button>
+                        </div>
+                    </div>
+                    <div x-show="isRosterUnlocked && !isTeacherAuthenticated" x-cloak class="mb-4 text-xs text-emerald-800 font-bold">Daftar siswa telah dibuka. Waktu absensi mengikuti WIT (UTC+9).</div>
+                    <form @submit.prevent="submitAttendance()" class="space-y-4 sm:space-y-5">
+                        
+                        <!-- 1. Pilih Kelas -->
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
+                                <span>1. Pilih Kelas <span class="text-red-500">*</span></span>
+                                <span class="text-[10px] text-slate-900 font-extrabold bg-[#ccff00] px-2 py-0.5 rounded-md border border-yellow-300">Langkah 1 dari 3</span>
+                            </label>
+                            <div class="relative">
+                                <select x-model="studentForm.classId" @change="onClassChange()" class="w-full pl-10 pr-10 py-3 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0000FF] focus:border-[#0000FF] text-slate-800 text-xs sm:text-sm font-bold appearance-none transition-all shadow-xs">
+                                    <option value="" disabled selected>-- Pilih Kelas Anda --</option>
+                                    <template x-for="item in classesList" :key="item.id">
+                                        <option :value="item.id" x-text="item.name"></option>
+                                    </template>
+                                </select>
+                                <div class="absolute left-3 top-1/2 -translate-y-1/2 text-[#0000FF]">
+                                    <i data-lucide="school" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                                </div>
+                                <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                                    <i data-lucide="chevron-down" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Pilih Nama Murid -->
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
+                                <span>2. Pilih Nama Murid <span class="text-red-500">*</span></span>
+                                <span class="text-[10px] text-slate-900 font-extrabold bg-[#ccff00] px-2 py-0.5 rounded-md border border-yellow-300">Langkah 2 dari 3</span>
+                            </label>
+                            <div class="relative">
+                                <select x-model="studentForm.studentName" @change="checkDuplicateAttendance()" :disabled="!studentForm.classId" class="w-full pl-10 pr-10 py-3 sm:py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0000FF] focus:border-[#0000FF] text-slate-800 text-xs sm:text-sm font-bold appearance-none transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-xs">
+                                    <option value="" disabled selected x-text="studentForm.classId ? '-- Pilih Nama Anda --' : '-- Pilih Kelas Terlebih Dahulu --'"></option>
+                                    <template x-for="name in availableStudents" :key="name">
+                                        <option :value="name" x-text="name"></option>
+                                    </template>
+                                </select>
+                                <div class="absolute left-3 top-1/2 -translate-y-1/2 text-[#0000FF]">
+                                    <i data-lucide="user" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                                </div>
+                                <div class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                                    <i data-lucide="chevron-down" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                                </div>
+                            </div>
+
+                            <p x-show="isCloudConnected && studentForm.classId && availableStudents.length === 0" class="mt-2 text-xs text-amber-700 font-semibold">Daftar siswa kelas ini masih kosong. Guru perlu memasukkan roster melalui Portal Guru.</p>
+                            <!-- Alert Warning if Student Has Already Submitted Today -->
+                            <template x-if="checkAlreadySubmitted(studentForm.studentName)">
+                                <div class="mt-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 flex items-start gap-2.5 text-xs">
+                                    <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600 shrink-0 mt-0.5"></i>
+                                    <div>
+                                        <p class="font-bold">Siswa Sudah Mengisi Hari Ini!</p>
+                                        <p class="text-[11px] text-amber-700 mt-0.5">
+                                            Nama <span class="font-bold underline" x-text="studentForm.studentName"></span> sudah tercatat presensi PKn pada jam <span class="font-mono font-bold" x-text="formatTime(getStudentTodayRecord(studentForm.studentName)?.timestamp)"></span>.
+                                        </p>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- 3. Status Kehadiran -->
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center justify-between">
+                                <span>3. Status Kehadiran Hari Ini <span class="text-red-500">*</span></span>
+                                <span class="text-[10px] text-slate-900 font-extrabold bg-[#ccff00] px-2 py-0.5 rounded-md border border-yellow-300">Langkah 3 dari 3</span>
+                            </label>
+                            <div class="grid grid-cols-3 gap-2 sm:gap-3">
+                                <label class="relative flex flex-col items-center justify-center p-2.5 sm:p-3.5 bg-slate-50 border-2 rounded-2xl cursor-pointer transition-all duration-200 text-center active:scale-95 select-none"
+                                       :class="studentForm.status === 'Hadir' ? 'border-[#0000FF] bg-blue-50/70 text-[#0000FF] shadow-xs' : 'border-slate-200 text-slate-600 hover:border-slate-300'">
+                                    <input type="radio" x-model="studentForm.status" value="Hadir" class="sr-only">
+                                    <i data-lucide="check-circle" class="w-5 h-5 sm:w-6 sm:h-6 mb-1"></i>
+                                    <span class="text-xs sm:text-sm font-bold">Hadir</span>
+                                </label>
+
+                                <label class="relative flex flex-col items-center justify-center p-2.5 sm:p-3.5 bg-slate-50 border-2 rounded-2xl cursor-pointer transition-all duration-200 text-center active:scale-95 select-none"
+                                       :class="studentForm.status === 'Izin' ? 'border-amber-500 bg-amber-50/70 text-amber-600 shadow-xs' : 'border-slate-200 text-slate-600 hover:border-slate-300'">
+                                    <input type="radio" x-model="studentForm.status" value="Izin" class="sr-only">
+                                    <i data-lucide="file-text" class="w-5 h-5 sm:w-6 sm:h-6 mb-1"></i>
+                                    <span class="text-xs sm:text-sm font-bold">Izin</span>
+                                </label>
+
+                                <label class="relative flex flex-col items-center justify-center p-2.5 sm:p-3.5 bg-slate-50 border-2 rounded-2xl cursor-pointer transition-all duration-200 text-center active:scale-95 select-none"
+                                       :class="studentForm.status === 'Sakit' ? 'border-rose-500 bg-rose-50/70 text-rose-600 shadow-xs' : 'border-slate-200 text-slate-600 hover:border-slate-300'">
+                                    <input type="radio" x-model="studentForm.status" value="Sakit" class="sr-only">
+                                    <i data-lucide="heart-pulse" class="w-5 h-5 sm:w-6 sm:h-6 mb-1"></i>
+                                    <span class="text-xs sm:text-sm font-bold">Sakit</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 4. Catatan -->
+                        <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                                4. Catatan / Alasan <span class="text-slate-400 font-normal">(Opsional)</span>
+                            </label>
+                            <textarea x-model="studentForm.notes" rows="2" placeholder="Contoh: Sakit flu / Izin ke luar kota..." class="w-full px-3.5 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0000FF] focus:border-[#0000FF] text-slate-800 text-xs sm:text-sm font-medium transition-all shadow-xs"></textarea>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="pt-2">
+                            <button type="submit" 
+                                    :disabled="isSubmitting || isCheckingAttendance || !isRosterUnlocked || !isCloudConnected || checkAlreadySubmitted(studentForm.studentName)"
+                                    class="w-full py-3.5 sm:py-4 px-5 gradient-brand text-white font-black text-xs sm:text-base rounded-2xl shadow-lg shadow-blue-500/30 hover:shadow-glow hover:scale-[1.01] active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2.5 border border-yellow-300/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:shadow-none">
+                                <template x-if="!isSubmitting">
+                                    <span class="flex items-center gap-2">
+                                        <i data-lucide="send" class="w-4 h-4 sm:w-5 sm:h-5 text-[#ccff00]"></i>
+                                        <span x-text="checkAlreadySubmitted(studentForm.studentName) ? 'Sudah Mengisi Absen Hari Ini' : 'Kirim Kehadiran Hari Ini'"></span>
+                                    </span>
+                                </template>
+                                <template x-if="isSubmitting">
+                                    <span class="flex items-center gap-2">
+                                        <div class="w-4 h-4 sm:w-5 sm:h-5 border-2 border-[#ccff00] border-t-transparent rounded-full animate-spin"></div>
+                                        <span>Memproses Data...</span>
+                                    </span>
+                                </template>
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- VIEW 2: PORTAL GURU (ADMIN DASHBOARD) -->
+        <!-- ========================================================================= -->
+        <div x-show="activeTab === 'teacher' && isTeacherAuthenticated" x-cloak x-transition:enter="transition ease-out duration-300 transform opacity-0 scale-95">
+            
+            <!-- Dashboard Header & Action Controls -->
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
+                <div>
+                    <h2 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight flex items-center gap-2 flex-wrap">
+                        <span>Portal Guru & Rekapitulasi</span>
+                        <span class="p-1.5 rounded-lg bg-[#ccff00] text-slate-900 text-xs font-black shadow-xs border border-yellow-300">PKn</span>
+                    </h2>
+                    <p class="text-slate-500 text-xs sm:text-sm mt-1">Sistem Absensi Pembelajaran Jarak Jauh - Mata Pelajaran Pendidikan Kewarganegaraan.</p>
+                </div>
+
+                <!-- Teacher Toolbar Action Buttons -->
+                <div class="flex items-center gap-2 flex-wrap">
+                    <!-- Template Excel Roster Sync Button -->
+                    <button @click="showRosterModal = true" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-emerald-600/20 transition-all flex items-center gap-2">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                        <span>Template & Sinkron Excel</span>
+                    </button>
+
+                    <!-- Export Modal Toggle -->
+                    <button @click="showExportModal = true" class="px-4 py-2.5 bg-[#0000FF] text-white hover:bg-blue-700 font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-blue-500/20 transition-all flex items-center gap-2 ring-2 ring-[#ccff00]/40">
+                        <i data-lucide="download" class="w-4 h-4 text-[#ccff00]"></i>
+                        <span>Ekspor Rekap Per Kelas</span>
+                    </button>
+
+                    <!-- Add Student Manual -->
+                    <button @click="showAddStudentModal = true" class="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-all flex items-center gap-1.5">
+                        <i data-lucide="user-plus" class="w-4 h-4"></i>
+                        <span>Tambah Siswa</span>
+                    </button>
+
+                    <!-- Logout Teacher -->
+                    <button @click="logoutTeacher()" class="p-2.5 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-all border border-rose-100" title="Keluar Portal Guru">
+                        <i data-lucide="log-out" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Statistics Grid Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <!-- Total Hadir Card -->
+                <div class="bg-white p-5 rounded-2xl border border-blue-100 shadow-xs relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-16 h-16 bg-[#ccff00]/20 rounded-bl-full pointer-events-none"></div>
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Hadir</p>
+                            <h3 class="text-2xl sm:text-3xl font-black text-[#0000FF] mt-1" x-text="stats.hadir">0</h3>
+                        </div>
+                        <div class="p-3 bg-blue-50 text-[#0000FF] rounded-xl border border-blue-100">
+                            <i data-lucide="user-check" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-xs text-slate-500 font-medium flex items-center gap-1">
+                        <span class="text-emerald-600 font-bold" x-text="stats.hadirPercentage + '%'"></span> dari total absensi
+                    </div>
+                </div>
+
+                <!-- Total Izin Card -->
+                <div class="bg-white p-5 rounded-2xl border border-amber-100 shadow-xs relative overflow-hidden">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Izin</p>
+                            <h3 class="text-2xl sm:text-3xl font-black text-amber-600 mt-1" x-text="stats.izin">0</h3>
+                        </div>
+                        <div class="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                            <i data-lucide="file-text" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-xs text-slate-500 font-medium">Memiliki keterangan izin</div>
+                </div>
+
+                <!-- Total Sakit Card -->
+                <div class="bg-white p-5 rounded-2xl border border-rose-100 shadow-xs relative overflow-hidden">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Sakit</p>
+                            <h3 class="text-2xl sm:text-3xl font-black text-rose-600 mt-1" x-text="stats.sakit">0</h3>
+                        </div>
+                        <div class="p-3 bg-rose-50 text-rose-600 rounded-xl">
+                            <i data-lucide="activity" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-xs text-slate-500 font-medium">Dalam masa pemulihan</div>
+                </div>
+
+                <!-- Total Masuk Hari ini -->
+                <div class="bg-white p-5 rounded-2xl border border-indigo-100 shadow-xs relative overflow-hidden">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Total Laporan</p>
+                            <h3 class="text-2xl sm:text-3xl font-black text-indigo-900 mt-1" x-text="filteredRecords.length">0</h3>
+                        </div>
+                        <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                            <i data-lucide="users" class="w-6 h-6"></i>
+                        </div>
+                    </div>
+                    <div class="mt-3 text-xs text-slate-500 font-medium">Sesuai filter aktif</div>
+                </div>
+            </div>
+
+            <!-- Filter Bar & Search -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs mb-6 flex flex-col md:flex-row gap-3 justify-between items-center">
+                <!-- Search Input -->
+                <div class="relative w-full md:w-72">
+                    <input type="text" x-model="teacherFilters.searchQuery" placeholder="Cari nama murid..." class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0000FF] focus:border-[#0000FF] text-xs sm:text-sm font-semibold">
+                    <div class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+                    <!-- Filter Class -->
+                    <select x-model="teacherFilters.classId" class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-700 focus:ring-2 focus:ring-[#0000FF]">
+                        <option value="ALL">Semua Kelas</option>
+                        <template x-for="item in classesList" :key="item.id">
+                            <option :value="item.id" x-text="item.name"></option>
+                        </template>
+                    </select>
+
+                    <!-- Filter Status -->
+                    <select x-model="teacherFilters.status" class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-700 focus:ring-2 focus:ring-[#0000FF]">
+                        <option value="ALL">Semua Status</option>
+                        <option value="Hadir">Hadir</option>
+                        <option value="Izin">Izin</option>
+                        <option value="Sakit">Sakit</option>
+                    </select>
+
+                    <!-- Filter Date -->
+                    <input type="date" x-model="teacherFilters.date" @change="loadAttendance()" class="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-700 focus:ring-2 focus:ring-[#0000FF]">
+                </div>
+            </div>
+
+            <!-- Data Table Section (Desktop View) & Cards Section (Mobile View) -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                
+                <!-- Desktop Table View -->
+                <div class="hidden md:block overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50/80 border-b border-slate-200 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
+                                <th class="py-4 px-6">Waktu</th>
+                                <th class="py-4 px-6">Nama Murid</th>
+                                <th class="py-4 px-6">Kelas</th>
+                                <th class="py-4 px-6">Status</th>
+                                <th class="py-4 px-6">Catatan</th>
+                                <th class="py-4 px-6 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-sm">
+                            <template x-for="record in filteredRecords" :key="record.id">
+                                <tr class="hover:bg-blue-50/30 transition-colors">
+                                    <td class="py-4 px-6 font-mono text-xs text-slate-500" x-text="formatTime(record.timestamp)"></td>
+                                    <td class="py-4 px-6 font-bold text-slate-900" x-text="record.studentName"></td>
+                                    <td class="py-4 px-6 font-bold text-slate-600">
+                                        <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs" x-text="getClassName(record.classId)"></span>
+                                    </td>
+                                    <td class="py-4 px-6">
+                                        <span class="px-3 py-1 rounded-full text-xs font-black inline-flex items-center gap-1.5"
+                                              :class="{
+                                                  'bg-blue-100 text-[#0000FF]': record.status === 'Hadir',
+                                                  'bg-amber-100 text-amber-700': record.status === 'Izin',
+                                                  'bg-rose-100 text-rose-700': record.status === 'Sakit'
+                                              }">
+                                            <span class="w-1.5 h-1.5 rounded-full" :class="{
+                                                'bg-[#0000FF]': record.status === 'Hadir',
+                                                'bg-amber-600': record.status === 'Izin',
+                                                'bg-rose-600': record.status === 'Sakit'
+                                            }"></span>
+                                            <span x-text="record.status"></span>
+                                        </span>
+                                    </td>
+                                    <td class="py-4 px-6 text-slate-500 text-xs italic max-w-xs truncate" x-text="record.notes || '-'"></td>
+                                    <td class="py-4 px-6 text-center">
+                                        <button @click="deleteRecord(record.id)" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all" title="Hapus Data">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </template>
+                            
+                            <!-- Empty State -->
+                            <template x-if="filteredRecords.length === 0">
+                                <tr>
+                                    <td colspan="6" class="py-12 text-center text-slate-400">
+                                        <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-3 opacity-40"></i>
+                                        <p class="font-bold text-slate-600">Tidak ada data kehadiran yang ditemukan.</p>
+                                        <p class="text-xs mt-1">Coba sesuaikan filter pencarian atau tunggu murid mengisi absensi.</p>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Mobile Card List View -->
+                <div class="block md:hidden divide-y divide-slate-100">
+                    <template x-for="record in filteredRecords" :key="record.id">
+                        <div class="p-4 flex flex-col gap-3 hover:bg-slate-50 transition-colors">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="font-bold text-slate-900 text-base" x-text="record.studentName"></h4>
+                                    <span class="inline-block mt-0.5 text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600" x-text="getClassName(record.classId)"></span>
+                                </div>
+                                <span class="px-2.5 py-1 rounded-full text-xs font-black"
+                                      :class="{
+                                          'bg-blue-100 text-[#0000FF]': record.status === 'Hadir',
+                                          'bg-amber-100 text-amber-700': record.status === 'Izin',
+                                          'bg-rose-100 text-rose-700': record.status === 'Sakit'
+                                      }" x-text="record.status"></span>
+                            </div>
+
+                            <div x-show="record.notes" class="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 italic">
+                                "<span x-text="record.notes"></span>"
+                            </div>
+
+                            <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-400 font-medium">
+                                <div class="flex items-center gap-1">
+                                    <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                                    <span x-text="formatTime(record.timestamp)"></span>
+                                </div>
+                                <button @click="deleteRecord(record.id)" class="text-rose-600 hover:underline font-bold flex items-center gap-1">
+                                    <i data-lucide="trash" class="w-3 h-3"></i>
+                                    <span>Hapus</span>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+
+                    <template x-if="filteredRecords.length === 0">
+                        <div class="p-8 text-center text-slate-400">
+                            <i data-lucide="inbox" class="w-10 h-10 mx-auto mb-2 opacity-40"></i>
+                            <p class="font-bold text-slate-600 text-sm">Belum ada data absensi.</p>
+                        </div>
+                    </template>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL 1: TEACHER PASSWORD VERIFICATION (KATUL) -->
+    <!-- ========================================================================= -->
+    <div x-show="showAuthModal" 
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+         x-cloak>
+        
+        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-luxury border border-blue-100 relative">
+            <button @click="showAuthModal = false" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <div class="text-center mb-6">
+                <div class="w-14 h-14 rounded-2xl bg-blue-50 text-[#0000FF] mx-auto flex items-center justify-center mb-3 shadow-sm border border-blue-100">
+                    <i data-lucide="lock" class="w-7 h-7"></i>
+                </div>
+                <h3 class="text-xl font-extrabold text-slate-900">Verifikasi Portal Guru</h3>
+                <p class="text-xs text-slate-500 mt-1">Masukkan password otorisasi guru untuk mengakses rekapan absensi.</p>
+            </div>
+
+            <form @submit.prevent="verifyTeacherPassword()" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase text-slate-700 mb-2">Email Guru (Cloudflare)</label>
+                    <input type="email" x-model="teacherEmail" autocomplete="username" placeholder="guru@sekolah.sch.id" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0000FF] text-slate-800 font-semibold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Password Guru</label>
+                    <div class="relative">
+                        <input :type="showPass ? 'text' : 'password'" x-model="inputPassword" autocomplete="current-password" required placeholder="Password akun guru..." class="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0000FF] text-slate-800 font-bold">
+                        <div class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                            <i data-lucide="key-round" class="w-4 h-4"></i>
+                        </div>
+                        <button type="button" @click="showPass = !showPass" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                            <i :data-lucide="showPass ? 'eye-off' : 'eye'" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <div x-show="authError" class="mt-2 text-xs font-bold text-rose-600 flex items-center gap-1">
+                        <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
+                        <span>Login tidak berhasil. Periksa email, password, atau izin akun guru.</span>
+                    </div>
+                </div>
+
+                <button type="submit" :disabled="isTeacherLoginPending" class="w-full py-3.5 bg-[#0000FF] text-white font-black rounded-xl shadow-md hover:bg-blue-700 transition-all disabled:opacity-60">
+                    Masuk Portal Guru
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: TEMPLATE EXCEL & ROSTER SYNC -->
+    <div x-show="showRosterModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" x-cloak>
+        <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-luxury border border-blue-100 relative">
+            <div class="flex justify-between items-center mb-5">
+                <div class="flex items-center gap-2.5">
+                    <div class="p-2 bg-emerald-50 text-emerald-600 rounded-xl">
+                        <i data-lucide="file-spreadsheet" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-black text-slate-900">Template & Sinkron Excel</h3>
+                        <p class="text-xs text-slate-500">Kelola daftar murid per kelas langsung terhubung ke Portal Murid</p>
+                    </div>
+                </div>
+                <button @click="showRosterModal = false" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            
+            <div class="space-y-5">
+                <!-- Step 1: Download Template -->
+                <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                    <h4 class="text-xs font-black uppercase text-slate-700 mb-1 flex items-center gap-1.5">
+                        <span class="w-5 h-5 bg-emerald-600 text-white rounded-full inline-flex items-center justify-center text-[10px]">1</span>
+                        <span>Unduh Format Template Excel</span>
+                    </h4>
+                    <p class="text-xs text-slate-500 mb-3">Unduh berkas template `.csv` yang sudah disusun kolom Kelas dan Nama Murid.</p>
+                    <button @click="downloadExcelTemplate()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        <span>Download Template Excel Murid (.csv)</span>
+                    </button>
+                </div>
+
+                <!-- Step 2: Import & Sync Data -->
+                <div class="p-4 rounded-2xl bg-blue-50/50 border border-blue-100">
+                    <h4 class="text-xs font-black uppercase text-slate-700 mb-1 flex items-center gap-1.5">
+                        <span class="w-5 h-5 bg-[#0000FF] text-white rounded-full inline-flex items-center justify-center text-[10px]">2</span>
+                        <span>Impor & Sinkronkan Roster Siswa</span>
+                    </h4>
+                    <p class="text-xs text-slate-500 mb-2">Tempel isi CSV atau ketik daftar murid dengan format: <code class="bg-white px-1 py-0.5 rounded text-[#0000FF] font-mono">Kelas, Nama Murid</code></p>
+                    
+                    <textarea x-model="importCSVText" rows="4" placeholder="Contoh:&#10;Kelas VII-A, Ahmad Rizky&#10;Kelas VII-A, Budi Santoso&#10;Kelas VIII-B, Citra Kirana" class="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-mono mb-3 focus:ring-2 focus:ring-[#0000FF]"></textarea>
+
+                    <button @click="importRosterFromCSV()" class="w-full py-2.5 bg-[#0000FF] hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        <span>Proses & Sinkronkan ke Portal Murid</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: EXPORT REKAP PER KELAS MODAL -->
+    <div x-show="showExportModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" x-cloak>
+        <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-luxury border border-blue-100 relative">
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex items-center gap-2">
+                    <div class="p-2 bg-blue-50 text-[#0000FF] rounded-xl">
+                        <i data-lucide="download" class="w-5 h-5"></i>
+                    </div>
+                    <h3 class="text-lg font-black text-slate-900">Download Rekap Per Kelas</h3>
+                </div>
+                <button @click="showExportModal = false" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <p class="text-xs text-slate-500 mb-4">Pilih kelas yang ingin diunduh rekapan absensinya lengkap dengan Tanggal, Bulan, Tahun, dan Waktu presensi (WIT).</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Pilih Kelas Rekapan</label>
+                    <select x-model="exportClassId" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800">
+                        <option value="ALL">-- Semua Kelas (Rekap Total) --</option>
+                        <template x-for="item in classesList" :key="item.id">
+                            <option :value="item.id" x-text="item.name"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">Tanggal Laporan Hari Ini</label>
+                    <input type="date" x-model="teacherFilters.date" @change="loadAttendance()" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800">
+                </div>
+
+                <div class="pt-2">
+                    <button @click="exportClassExcel()" class="w-full py-3.5 bg-[#0000FF] text-white font-black text-sm rounded-xl shadow-md hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+                        <span>Download Rekapan Excel (.csv)</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 4: ADD STUDENT MANUAL -->
+    <div x-show="showAddStudentModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" x-cloak>
+        <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-luxury">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-900">Tambah Murid Baru</h3>
+                <button @click="showAddStudentModal = false" class="text-slate-400"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            
+            <form @submit.prevent="addNewStudent()" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Kelas</label>
+                    <select x-model="newStudent.classId" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold">
+                        <template x-for="item in classesList" :key="item.id">
+                            <option :value="item.id" x-text="item.name"></option>
+                        </template>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap Murid</label>
+                    <input type="text" x-model="newStudent.name" placeholder="Nama siswa..." class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold" required>
+                </div>
+                <button type="submit" class="w-full py-3 bg-[#0000FF] text-white font-bold rounded-xl shadow-md">Simpan Siswa</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification Banner -->
+    <div x-show="toast.show" 
+         x-transition:enter="transition ease-out duration-300 transform"
+         x-transition:enter-start="translate-y-10 opacity-0"
+         x-transition:enter-end="translate-y-0 opacity-100"
+         x-transition:leave="transition ease-in duration-200 transform"
+         x-transition:leave-start="translate-y-0 opacity-100"
+         x-transition:leave-end="translate-y-10 opacity-0"
+         class="fixed bottom-6 right-6 z-50 max-w-sm w-full bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-800"
+         x-cloak>
+        <div class="p-2 rounded-xl" :class="toast.type === 'success' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'">
+            <i :data-lucide="toast.type === 'success' ? 'check-circle' : 'alert-triangle'" class="w-5 h-5"></i>
+        </div>
+        <div class="flex-grow">
+            <p class="text-xs font-bold text-slate-300" x-text="toast.title"></p>
+            <p class="text-xs text-slate-400 mt-0.5" x-text="toast.message"></p>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="mt-auto border-t border-slate-200/80 bg-slate-50/60 py-4 sm:py-5">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-3 text-xs">
+            <!-- Official App Identifier Badge -->
+            <div class="flex items-center gap-2 flex-wrap justify-center">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white border border-blue-200/80 font-mono text-[11px] font-extrabold text-slate-800 shadow-xs">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5 text-[#0000FF]"></i>
+                    <span>KODE APLIKASI: <span class="text-[#0000FF]">AF-SMPN6MKW-PKN-2026.v2</span></span>
+                </span>
+                <span class="text-slate-300 font-bold hidden sm:inline">•</span>
+                <span class="text-slate-500 font-extrabold text-[11px] uppercase tracking-wider">SMP Negeri 6 Manokwari</span>
+            </div>
+
+            <!-- Official Developer Attribution -->
+            <div class="text-center md:text-right text-slate-600 font-semibold tracking-tight">
+                Sistem Didesain &amp; Dikembangkan secara Resmi oleh <span class="font-black text-slate-900 underline decoration-[#ccff00] decoration-2">ALFIAN</span> <span class="text-slate-500 font-medium">(Guru Bimbingan dan Konseling)</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Application Engine Script: Cloudflare API -->
+    <script>
+// Waktu sekolah sepenuhnya WIT (Asia/Jayapura); tanggal validasi dibuat di server.
+const SCHOOL_TZ = 'Asia/Jayapura';
+function witParts(value = new Date()) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    return Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+        timeZone: SCHOOL_TZ, year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(date).filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
+}
+function witDateKey(value = new Date()) {
+    const p = witParts(value);
+    return p ? `${p.year}-${p.month}-${p.day}` : '';
+}
+function parseRosterCsvRow(line) {
+    const out = []; let value = ''; let quoted = false;
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+            if (quoted && line[i + 1] === '"') { value += '"'; i++; }
+            else quoted = !quoted;
+        } else if (ch === ',' && !quoted) { out.push(value.trim()); value = ''; }
+        else value += ch;
+    }
+    if (quoted) throw new Error('Tanda petik CSV tidak berpasangan.');
+    out.push(value.trim()); return out;
+}
+function csvSafe(value) {
+    let s = String(value ?? '');
+    if (/^[\s]*[=+\-@]/.test(s)) s = "'" + s;
+    return '"' + s.replace(/"/g, '""') + '"';
+}
+function saveCsv(fileName, rows) {
+    const csv = '\ufeff' + rows.map(row => row.map(csvSafe).join(',')).join('\r\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = fileName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+function classIdFromCsv(source) {
+    const normalized = source.trim().toUpperCase().replace(/^KELAS\s+/, '').replace(/\s+/g, '');
+    return /^[A-Z0-9-]{2,32}$/.test(normalized) ? normalized : '';
+}
+function attendanceId(dateStr, classId, name) { return `${dateStr}__${classId}__${name.trim()}`; }
+
+function appData() {
+    return {
+        activeTab:'student', isTeacherAuthenticated:false, isTeacherLoginPending:false,
+        showAuthModal:false, showRosterModal:false, showExportModal:false, showAddStudentModal:false,
+        teacherEmail:'', inputPassword:'', showPass:false, authError:false,
+        isSubmitting:false, isCloudConnected:false, connectionError:'',
+        classroomCode:'', isRosterUnlocked:false, isUnlockingRoster:false, isCheckingAttendance:false,
+        checkedAttendance:{key:'',submitted:false,timestamp:null},
+        exportClassId:'ALL', importCSVText:'',
+        currentDateString:'', currentTimeString:'',
+        studentForm:{classId:'',studentName:'',status:'Hadir',notes:''},
+        teacherFilters:{searchQuery:'',classId:'ALL',status:'ALL',date:witDateKey()},
+        newStudent:{classId:'VII-A',name:''},
+        toast:{show:false,title:'',message:'',type:'success'},
+        classesList:[
+            {id:'VII-A',name:'Kelas VII-A'}, {id:'VII-B',name:'Kelas VII-B'},
+            {id:'VIII-A',name:'Kelas VIII-A'}, {id:'VIII-B',name:'Kelas VIII-B'},
+            {id:'IX-A',name:'Kelas IX-A'}, {id:'IX-B',name:'Kelas IX-B'}
+        ],
+        studentsRoster:{}, attendanceRecords:[], _toastTimer:null, _lastWitDate:'',
+        get availableStudents() { return this.studentsRoster[this.studentForm.classId] || []; },
+        get filteredRecords() {
+            return this.attendanceRecords.filter(item => {
+                const matchClass = this.teacherFilters.classId === 'ALL' || item.classId === this.teacherFilters.classId;
+                const matchStatus = this.teacherFilters.status === 'ALL' || item.status === this.teacherFilters.status;
+                const matchSearch = !this.teacherFilters.searchQuery || item.studentName.toLocaleLowerCase('id-ID').includes(this.teacherFilters.searchQuery.toLocaleLowerCase('id-ID'));
+                const matchDate = !this.teacherFilters.date || item.attendanceDate === this.teacherFilters.date;
+                return matchClass && matchStatus && matchSearch && matchDate;
+            });
+        },
+        get stats() {
+            const rows = this.filteredRecords;
+            const hadir=rows.filter(r=>r.status==='Hadir').length;
+            const izin=rows.filter(r=>r.status==='Izin').length;
+            const sakit=rows.filter(r=>r.status==='Sakit').length;
+            return {hadir,izin,sakit,total:rows.length,hadirPercentage:rows.length ? Math.round(100*hadir/rows.length):0};
+        },
+        redrawIcons() { this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); }); },
+        async api(path, options={}) {
+            const headers = {'Accept':'application/json', ...(options.body ? {'Content-Type':'application/json'} : {})};
+            if (this.classroomCode.trim()) headers['X-Classroom-Code'] = this.classroomCode.trim();
+            const response = await fetch('/api'+path, {...options, credentials:'same-origin', cache:'no-store', headers:{...headers,...(options.headers || {})}});
+            let data;
+            try { data = await response.json(); } catch { throw new Error('Server tidak mengembalikan JSON. Periksa pengaturan Cloudflare Pages Functions.'); }
+            if (!response.ok) throw Object.assign(new Error(data.error || `Server HTTP ${response.status}`), {status:response.status});
+            return data;
+        },
+        async initApp() {
+            this.updateTime();
+            setInterval(() => this.updateTime(), 1000);
+            try {
+                await this.api('/health');
+                this.isCloudConnected=true; this.connectionError='';
+                const session=await this.api('/admin/session');
+                if (session.authenticated) {
+                    this.isTeacherAuthenticated=true;
+                    await this.loadRoster(); await this.loadAttendance();
+                }
+            } catch(e) {
+                console.error('Koneksi Cloudflare gagal:',e);
+                this.isCloudConnected=false;
+                this.connectionError='Belum terhubung ke Cloudflare D1. Pastikan binding DB, schema SQL, dan Pages Functions sudah dipasang.';
+            }
+            this.redrawIcons();
+            // Rekap guru diperbarui berkala; absensi siswa dicek server setiap pergantian nama.
+            setInterval(() => { if (this.isTeacherAuthenticated) this.loadAttendance(); }, 60000);
+        },
+        async unlockRoster() {
+            if (this.isUnlockingRoster || !this.classroomCode.trim()) {
+                this.showToast('Kode Diperlukan','Masukkan kode akses kelas dari guru.','error'); return;
+            }
+            this.isUnlockingRoster=true;
+            try {
+                await this.loadRoster();
+                this.isCloudConnected=true; this.connectionError='';
+                this.showToast('Daftar Terbuka','Silakan pilih kelas dan nama Anda.','success');
+            } catch(e) {
+                this.isRosterUnlocked=false;
+                this.classroomCode='';
+                this.showToast('Akses Ditolak', e.message || 'Kode akses tidak benar.','error');
+            } finally {this.isUnlockingRoster=false;}
+        },
+        async loadRoster() {
+            const data=await this.api('/roster');
+            this.classesList=data.classes;
+            this.studentsRoster=data.roster;
+            this.isRosterUnlocked=true;
+            if (!this.classesList.some(c=>c.id===this.newStudent.classId)) this.newStudent.classId=this.classesList[0]?.id || '';
+            if (!this.classesList.some(c=>c.id===this.studentForm.classId)) { this.studentForm.classId=''; this.studentForm.studentName=''; }
+            this.redrawIcons();
+        },
+        async loadAttendance() {
+            if (!this.isTeacherAuthenticated) return;
+            try {
+                const params=this.teacherFilters.date ? '?date='+encodeURIComponent(this.teacherFilters.date) : '';
+                const response=await this.api('/admin/attendance'+params);
+                this.attendanceRecords=response.records;
+                this.redrawIcons();
+            } catch(e) {
+                if (e.status===401) {
+                    this.isTeacherAuthenticated=false; this.attendanceRecords=[]; this.activeTab='student';
+                    this.isRosterUnlocked=false; this.studentsRoster={};
+                }
+                this.showToast('Gagal Memuat Rekap', e.message, 'error');
+            }
+        },
+        async submitAttendance() {
+            if (this.isSubmitting) return;
+            const {classId,studentName,status}=this.studentForm;
+            const notes=this.studentForm.notes.trim();
+            if (!this.isRosterUnlocked || !this.isCloudConnected) {
+                this.showToast('Akses Diperlukan','Buka daftar siswa dengan kode kelas terlebih dahulu.','error'); return;
+            }
+            if (!classId || !studentName || !(this.studentsRoster[classId] || []).includes(studentName)) {
+                this.showToast('Data Tidak Valid','Pilih kelas dan nama yang tercantum dalam daftar siswa.','error'); return;
+            }
+            if (!['Hadir','Izin','Sakit'].includes(status) || notes.length>250) {
+                this.showToast('Data Tidak Valid','Pilih status dan catatan maksimal 250 karakter.','error'); return;
+            }
+            this.isSubmitting=true;
+            try {
+                const result=await this.api('/attendance',{method:'POST',body:JSON.stringify({classId,studentName,status,notes})});
+                this.checkedAttendance={key:attendanceId(witDateKey(),classId,studentName),submitted:true,timestamp:result.timestamp};
+                this.studentForm.studentName=''; this.studentForm.status='Hadir'; this.studentForm.notes='';
+                this.showToast('Absensi Berhasil','Presensi tersimpan di database Cloudflare D1.','success');
+            } catch(e) {
+                if (e.status===409) await this.checkDuplicateAttendance();
+                this.showToast('Absensi Tidak Tersimpan',e.message || 'Periksa koneksi internet.','error');
+            } finally {this.isSubmitting=false;}
+        },
+        async deleteRecord(id) {
+            if (!this.isTeacherAuthenticated || !window.confirm('Hapus data absensi ini secara permanen?')) return;
+            try {
+                await this.api('/admin/attendance?id='+encodeURIComponent(id),{method:'DELETE'});
+                await this.loadAttendance();
+                this.showToast('Data Dihapus','Data presensi sudah dihapus.','success');
+            } catch(e) {this.showToast('Gagal Menghapus',e.message,'error');}
+        },
+        async saveRosterToCloud(specificClassId=null,rosterOverride=null) {
+            if (!this.isTeacherAuthenticated) throw new Error('Hanya guru yang dapat mengubah daftar siswa.');
+            const roster=rosterOverride || this.studentsRoster;
+            const keys=specificClassId ? [specificClassId] : Object.keys(roster);
+            const entries=keys.flatMap(classId => (roster[classId] || []).map(name=>({classId,name})));
+            // Kirim bertahap agar setiap request tetap kecil dan menghindari limit D1 batch.
+            for (let i=0;i<entries.length;i+=200) {
+                await this.api('/admin/students',{method:'POST',body:JSON.stringify({entries:entries.slice(i,i+200)})});
+            }
+            await this.loadRoster();
+        },
+        async addNewStudent() {
+            if (!this.isTeacherAuthenticated) return;
+            const name=this.newStudent.name.trim(); const classId=this.newStudent.classId;
+            if (!name || name.length>100 || !this.classesList.some(c=>c.id===classId)) {
+                this.showToast('Data Tidak Valid','Pilih kelas dan isi nama maksimal 100 karakter.','error'); return;
+            }
+            if ((this.studentsRoster[classId] || []).some(n=>n.toLocaleLowerCase('id-ID')===name.toLocaleLowerCase('id-ID'))) {
+                this.showToast('Nama Sudah Ada','Nama itu sudah ada dalam kelas ini.','error'); return;
+            }
+            try {
+                await this.api('/admin/students',{method:'POST',body:JSON.stringify({entries:[{classId,name}]})});
+                await this.loadRoster();
+                this.newStudent.name=''; this.showAddStudentModal=false;
+                this.showToast('Siswa Ditambahkan','Nama siswa tersimpan di Cloudflare D1.','success');
+            } catch(e) {this.showToast('Gagal Menambah',e.message,'error');}
+        },
+        async importRosterFromCSV() {
+            if (!this.isTeacherAuthenticated || !this.importCSVText.trim()) {
+                this.showToast('CSV Kosong','Masukkan daftar siswa terlebih dahulu.','error'); return;
+            }
+            const draft=Object.fromEntries(Object.entries(this.studentsRoster).map(([id,names])=>[id,[...names]]));
+            let count=0;
+            try {
+                const lines=this.importCSVText.replace(/^\ufeff/,'').split(/\r?\n/);
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    const cells=parseRosterCsvRow(line);
+                    if (cells.length!==2) throw new Error('CSV harus memiliki dua kolom: Kelas, Nama Murid.');
+                    const [rawClass,rawName]=cells;
+                    if (/^kelas$/i.test(rawClass) && /^nama murid$/i.test(rawName)) continue;
+                    const classId=classIdFromCsv(rawClass), name=rawName.trim();
+                    if (!classId || !name || name.length>100) throw new Error('Baris CSV tidak valid: '+line.slice(0,60));
+                    if (!draft[classId]) draft[classId]=[];
+                    if (!draft[classId].some(n=>n.toLocaleLowerCase('id-ID')===name.toLocaleLowerCase('id-ID'))) {
+                        draft[classId].push(name); count++;
+                    }
+                }
+                if (!count) throw new Error('Semua siswa sudah ada atau CSV kosong.');
+                await this.saveRosterToCloud(null,draft);
+                this.importCSVText=''; this.showRosterModal=false;
+                this.showToast('Impor Berhasil',`${count} siswa baru dikirim ke Cloudflare D1.`,'success');
+            } catch(e) {this.showToast('Impor Gagal',e.message,'error');}
+        },
+        updateTime() {
+            const now=new Date();
+            this.currentDateString=new Intl.DateTimeFormat('id-ID',{timeZone:SCHOOL_TZ,weekday:'long',year:'numeric',month:'long',day:'numeric'}).format(now);
+            this.currentTimeString=new Intl.DateTimeFormat('id-ID',{timeZone:SCHOOL_TZ,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(now)+' WIT';
+            const today=witDateKey(now);
+            if (!this._lastWitDate) this._lastWitDate=today;
+            if (today!==this._lastWitDate) {
+                this._lastWitDate=today; this.teacherFilters.date=today;
+                this.checkedAttendance={key:'',submitted:false,timestamp:null};
+                if (this.isTeacherAuthenticated) this.loadAttendance();
+            }
+        },
+        switchTab(tab) {
+            if (tab==='teacher' && !this.isTeacherAuthenticated) {this.openTeacherAuthModal();return;}
+            this.activeTab=tab; this.redrawIcons();
+        },
+        openTeacherAuthModal() {
+            if (this.isTeacherAuthenticated) {this.switchTab('teacher');return;}
+            this.inputPassword=''; this.authError=false; this.showAuthModal=true; this.redrawIcons();
+        },
+        async verifyTeacherPassword() {
+            if (this.isTeacherLoginPending) return;
+            if (!this.teacherEmail.trim() || !this.inputPassword) {this.authError=true;return;}
+            this.isTeacherLoginPending=true;
+            try {
+                await this.api('/admin/login',{method:'POST',body:JSON.stringify({email:this.teacherEmail.trim(),password:this.inputPassword})});
+                this.isTeacherAuthenticated=true; this.authError=false; this.inputPassword='';
+                this.showAuthModal=false; this.activeTab='teacher';
+                await this.loadRoster(); await this.loadAttendance();
+                this.showToast('Login Berhasil','Selamat datang di Portal Guru.','success');
+            } catch(e) {
+                console.error('Login guru:',e);
+                this.authError=true; this.isTeacherAuthenticated=false;
+                this.showToast('Login Gagal',e.message,'error');
+            } finally {this.isTeacherLoginPending=false;}
+        },
+        async logoutTeacher() {
+            try {await this.api('/admin/logout',{method:'POST'});} catch(e) {console.error(e);}
+            this.isTeacherAuthenticated=false; this.attendanceRecords=[];
+            this.isRosterUnlocked=false; this.studentsRoster={}; this.classroomCode='';
+            this.studentForm.studentName=''; this.checkedAttendance={key:'',submitted:false,timestamp:null};
+            this.activeTab='student'; this.showToast('Keluar Portal','Sesi guru sudah ditutup.','success');
+        },
+        onClassChange() {
+            this.studentForm.studentName=''; this.checkedAttendance={key:'',submitted:false,timestamp:null};
+        },
+        checkAlreadySubmitted(name) {
+            if (!name || !this.studentForm.classId) return false;
+            return this.checkedAttendance.key===attendanceId(witDateKey(),this.studentForm.classId,name) && this.checkedAttendance.submitted;
+        },
+        getStudentTodayRecord(name) {
+            if (this.checkAlreadySubmitted(name)) return {timestamp:this.checkedAttendance.timestamp};
+            return null;
+        },
+        async checkDuplicateAttendance() {
+            const name=this.studentForm.studentName;
+            const classId=this.studentForm.classId;
+            this.checkedAttendance={key:'',submitted:false,timestamp:null};
+            if (!this.isRosterUnlocked || !name || !classId) return;
+            const key=attendanceId(witDateKey(),classId,name);
+            this.isCheckingAttendance=true;
+            try {
+                const result=await this.api('/check?classId='+encodeURIComponent(classId)+'&studentName='+encodeURIComponent(name));
+                if (this.studentForm.studentName===name && this.studentForm.classId===classId && key.startsWith(witDateKey())) {
+                    this.checkedAttendance={key,submitted:result.submitted,timestamp:result.timestamp};
+                }
+            } catch(e) {this.showToast('Pemeriksaan Gagal',e.message,'error');}
+            finally {this.isCheckingAttendance=false;this.redrawIcons();}
+        },
+        downloadExcelTemplate() {
+            saveCsv('Template_Roster_SMPN6.csv',[
+                ['Kelas','Nama Murid'],['Kelas VII-A','Contoh Siswa Satu'],
+                ['Kelas VII-A','Contoh Siswa Dua'],['Kelas VIII-B','Contoh Siswa Tiga']
+            ]);
+            this.showToast('Template Siap','File CSV template dibuat.','success');
+        },
+        exportClassExcel() {
+            if (!this.isTeacherAuthenticated) return;
+            const selectedClass=this.exportClassId;
+            const filtered=this.attendanceRecords.filter(r=>(selectedClass==='ALL'||r.classId===selectedClass)&&
+                (!this.teacherFilters.date||r.attendanceDate===this.teacherFilters.date));
+            if (!filtered.length) {this.showToast('Tidak Ada Data','Tidak ada absensi pada tanggal yang dipilih.','error');return;}
+            const rows=[['No','Hari','Tanggal','Bulan','Tahun','Jam (WIT)','Nama Murid','Kelas','Status Kehadiran','Catatan']];
+            filtered.forEach((r,i)=>{
+                const d=new Date(r.timestamp);
+                const parts=Object.fromEntries(new Intl.DateTimeFormat('id-ID',{
+                    timeZone:SCHOOL_TZ,weekday:'long',day:'numeric',month:'long',year:'numeric'
+                }).formatToParts(d).filter(p=>p.type!=='literal').map(p=>[p.type,p.value]));
+                const time=new Intl.DateTimeFormat('id-ID',{
+                    timeZone:SCHOOL_TZ,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false
+                }).format(d);
+                rows.push([i+1,parts.weekday,parts.day,parts.month,parts.year,time,r.studentName,this.getClassName(r.classId),r.status,r.notes||'-']);
+            });
+            const date=this.teacherFilters.date||'semua-tanggal';
+            saveCsv(`Rekap_Absen_PKn_${selectedClass}_${date}.csv`,rows);
+            this.showExportModal=false; this.showToast('Ekspor Berhasil','Rekap CSV sudah dibuat.','success');
+        },
+        getClassName(classId) {return this.classesList.find(c=>c.id===classId)?.name||classId;},
+        formatTime(value) {
+            if (!value) return '-';
+            const d=new Date(value);
+            return Number.isNaN(d.getTime())?'-':new Intl.DateTimeFormat('id-ID',{
+                timeZone:SCHOOL_TZ,hour:'2-digit',minute:'2-digit',hour12:false
+            }).format(d)+' WIT';
+        },
+        showToast(title,message,type='success') {
+            this.toast={show:true,title,message,type}; this.redrawIcons();
+            if (this._toastTimer) clearTimeout(this._toastTimer);
+            this._toastTimer=setTimeout(()=>{this.toast.show=false;},4000);
+        }
+    };
+}
+    </script>
+</body>
+</html>
