@@ -592,13 +592,13 @@
                     <i data-lucide="lock" class="w-7 h-7"></i>
                 </div>
                 <h3 class="text-xl font-extrabold text-slate-900">Verifikasi Portal Guru</h3>
-                <p class="text-xs text-slate-500 mt-1">Masukkan password otorisasi guru untuk mengakses rekapan absensi.</p>
+                <p class="text-xs text-slate-500 mt-1">Masukkan nama guru dan password untuk mengakses rekap absensi.</p>
             </div>
 
             <form @submit.prevent="verifyTeacherPassword()" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold uppercase text-slate-700 mb-2">Email Guru (Cloudflare)</label>
-                    <input type="email" x-model="teacherEmail" autocomplete="username" placeholder="guru@sekolah.sch.id" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0000FF] text-slate-800 font-semibold">
+                    <label class="block text-xs font-bold uppercase text-slate-700 mb-2">Nama Guru</label>
+                    <input type="text" x-model="teacherUsername" autocomplete="username" maxlength="100" placeholder="Contoh: ALFIAN" required class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#0000FF] text-slate-800 font-semibold">
                 </div>
                 <div>
                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">Password Guru</label>
@@ -613,7 +613,7 @@
                     </div>
                     <div x-show="authError" class="mt-2 text-xs font-bold text-rose-600 flex items-center gap-1">
                         <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
-                        <span>Login tidak berhasil. Periksa email, password, atau izin akun guru.</span>
+                        <span>Login tidak berhasil. Periksa nama guru dan password sesuai pengaturan Cloudflare.</span>
                     </div>
                 </div>
 

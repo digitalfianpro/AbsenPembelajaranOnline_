@@ -48,7 +48,7 @@ function appData() {
         activeTab:'student', isTeacherAuthenticated:false, isTeacherLoginPending:false,
         showAuthModal:false, showRosterModal:false, showExportModal:false, showAddStudentModal:false,
         showShareModal:false, shareClassId:'VII-A', shareLinks:[], isShareBusy:false,
-        teacherEmail:'', inputPassword:'', showPass:false, authError:false,
+        teacherUsername:'', inputPassword:'', showPass:false, authError:false,
         isSubmitting:false, isCloudConnected:false, connectionError:'',
         studentLink:'', isRosterUnlocked:false, isCheckingAttendance:false,
         checkedAttendance:{key:'',submitted:false,timestamp:null},
@@ -323,10 +323,10 @@ function appData() {
         },
         async verifyTeacherPassword() {
             if (this.isTeacherLoginPending) return;
-            if (!this.teacherEmail.trim() || !this.inputPassword) {this.authError=true;return;}
+            if (!this.teacherUsername.trim() || !this.inputPassword) {this.authError=true;return;}
             this.isTeacherLoginPending=true;
             try {
-                await this.api('/admin/login',{method:'POST',body:JSON.stringify({email:this.teacherEmail.trim(),password:this.inputPassword})});
+                await this.api('/admin/login',{method:'POST',body:JSON.stringify({username:this.teacherUsername.trim(),password:this.inputPassword})});
                 this.isTeacherAuthenticated=true; this.authError=false; this.inputPassword='';
                 this.showAuthModal=false; this.activeTab='teacher';
                 await this.loadRoster(); await this.loadAttendance();

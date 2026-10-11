@@ -1,5 +1,5 @@
 // Cloudflare Pages Function. D1 binding DB dan secrets ditempatkan di dashboard.
-// Tidak ada Firebase maupun password yang dikirim ke browser.
+// Tidak ada Firebase ataupun password guru yang disimpan/dikirim ke browser sebagai konfigurasi.
 const WIT_ZONE = 'Asia/Jayapura';
 const COOKIE = '__Host-smp6_teacher';
 const EIGHT_HOURS = 8 * 60 * 60;
@@ -28,6 +28,7 @@ function sameOrigin(request) {
 function validClassId(value) { return typeof value === 'string' && /^[A-Z0-9-]{2,32}$/.test(value); }
 function validName(value) { return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= 100 && !/[\r\n\u0000-\u001f]/.test(value); }
 function normalizeName(name) { return name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('id-ID'); }
+function normalizeTeacherUsername(name) { return name.trim().replace(/\s+/g, ' ').toLocaleLowerCase('id-ID'); }
 function base64url(bytes) {
   let binary = ''; for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
@@ -112,7 +113,7 @@ export async function onRequest({request, env, params}) {
     }
 
     if (path === '/admin/login' && method === 'POST') {
-      if (!env.TEACHER_EMAIL || !env.TEACHER_PASSWORD || !env.SESSION_SECRET || env.SESSION_SECRET.length < 32) {
+      if (!env.TEACHER_USERNAME || !env.TEACHER_PASSWORD || !env.SESSION_SECRET || env.SESSION_SECRET.length < 32) {
         return error(503, 'Rahasia autentikasi guru belum disetel di Cloudflare.');
       }
       const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
@@ -121,15 +122,18 @@ export async function onRequest({request, env, params}) {
       const attempt = await env.DB.prepare('SELECT attempts,window_start FROM login_attempts WHERE ip_key=?').bind(ipKey).first();
       if (attempt && attempt.window_start + 900 > now && attempt.attempts >= 5) return error(429, 'Terlalu banyak percobaan. Coba lagi setelah 15 menit.');
       const b = await bodyJson(request);
-      const email = typeof b.email === 'string' ? b.email.trim().toLowerCase() : '';
+      const username = typeof b.username === 'string' ? b.username : '';
       const password = typeof b.password === 'string' ? b.password : '';
-      if (email.length > 254 || password.length > 256) return error(400, 'Data login tidak valid.');
-      const emailOk = constantTimeEqual(await sha256(email), await sha256(env.TEACHER_EMAIL.trim().toLowerCase()));
+      if (!validName(username) || password.length > 256 || !password) return error(400, 'Nama atau password tidak valid.');
+      const usernameOk = constantTimeEqual(
+        await sha256(normalizeTeacherUsername(username)),
+        await sha256(normalizeTeacherUsername(env.TEACHER_USERNAME))
+      );
       const passOk = constantTimeEqual(await sha256(password), await sha256(env.TEACHER_PASSWORD));
-      if (!emailOk || !passOk) {
+      if (!usernameOk || !passOk) {
         const attempts = attempt && attempt.window_start + 900 > now ? attempt.attempts + 1 : 1;
         await env.DB.prepare('INSERT INTO login_attempts(ip_key,attempts,window_start) VALUES (?,?,?) ON CONFLICT(ip_key) DO UPDATE SET attempts=excluded.attempts, window_start=excluded.window_start').bind(ipKey, attempts, (attempt && attempt.window_start + 900 > now) ? attempt.window_start : now).run();
-        return error(401, 'Email atau password guru salah.');
+        return error(401, 'Nama atau password guru salah.');
       }
       await env.DB.prepare('DELETE FROM login_attempts WHERE ip_key=?').bind(ipKey).run();
       return json({ok: true}, 200, {'Set-Cookie': cookieHeader(await signCookie(env.SESSION_SECRET))});

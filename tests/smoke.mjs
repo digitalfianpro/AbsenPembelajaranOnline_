@@ -27,7 +27,7 @@ const wrappedDB = {
 };
 const code = readFileSync(new URL('functions/api/[[path]].js', root), 'utf8');
 const server = await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
-const env = {DB: wrappedDB, TEACHER_EMAIL:'guru@example.com',TEACHER_PASSWORD:'PasswordKuatSangatPanjang2026!',
+const env = {DB: wrappedDB, TEACHER_USERNAME:'ALFIAN',TEACHER_PASSWORD:'PasswordKuatSangatPanjang2026!',
   SESSION_SECRET:'SECRETDIPAKAISEKOLAH_0123456789_0123456789___'};
 const origin = 'https://smp6.pages.dev';
 async function call(path, method='GET', payload=undefined, {cookie='', link='', originHeader=true}={}) {
@@ -43,10 +43,13 @@ assert.equal(ok.status,200); assert.equal(ok.data.timezone,'Asia/Jayapura');
 assert.equal((await call('/roster')).status,403);
 assert.equal((await call('/roster','GET',undefined,{link:'wrong'})).status,403);
 assert.equal((await call('/admin/session')).data.authenticated,false);
-assert.equal((await call('/admin/login','POST',{email:env.TEACHER_EMAIL,password:'SALAH'})).status,401);
+assert.equal((await call('/admin/login','POST',{username:env.TEACHER_USERNAME,password:'SALAH'})).status,401);
 assert.equal((await call('/admin/attendance')).status,401);
-assert.equal((await call('/admin/login','POST',{email:env.TEACHER_EMAIL,password:env.TEACHER_PASSWORD},{originHeader:false})).status,403);
-const login = await call('/admin/login','POST',{email:env.TEACHER_EMAIL,password:env.TEACHER_PASSWORD});
+assert.equal((await call('/admin/login','POST',{username:env.TEACHER_USERNAME,password:env.TEACHER_PASSWORD},{originHeader:false})).status,403);
+// Nama dapat ditulis dalam kapitalisasi berbeda; email bukan kredensial login lagi.
+assert.equal((await call('/admin/login','POST',{username:'NAMA LAIN',password:env.TEACHER_PASSWORD})).status,401);
+assert.equal((await call('/admin/login','POST',{email:'guru@example.com',password:env.TEACHER_PASSWORD})).status,400);
+const login = await call('/admin/login','POST',{username:'  alfian  ',password:env.TEACHER_PASSWORD});
 assert.equal(login.status,200); assert.match(login.cookie,/HttpOnly; SameSite=Strict/);
 const teacherCookie = login.cookie.split(';')[0];
 assert.equal((await call('/admin/session','GET',undefined,{cookie:teacherCookie})).data.authenticated,true);
@@ -114,4 +117,4 @@ app.studentForm.classId='VII-A';app.studentForm.studentName='Ahmad Contoh';
 app.checkedAttendance={key:sandbox.__witDateKey()+'__VII-A__Ahmad Contoh',submitted:true,timestamp:'2026-10-11T00:00:00Z'};
 assert.equal(app.checkAlreadySubmitted('Ahmad Contoh'),true);
 assert.equal(app.stats.total,0);
-console.log('LULUS: API health, kode kelas, login/logout guru, autentikasi sesi, tambah siswa, kelas berbeda, kirim absensi, duplikat, cek absensi, hapus, filter data, tanggal WIT, CSV.');
+console.log('LULUS: API health, kode kelas, login nama guru/password (tanpa email), logout guru, autentikasi sesi, tambah siswa, kelas berbeda, kirim absensi, duplikat, cek absensi, hapus, filter data, tanggal WIT, CSV.');
