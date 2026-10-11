@@ -48,16 +48,16 @@ PANDUAN_UPDATE_QR.md
 
 ## 3. Secret Cloudflare yang digunakan
 
-**Tidak perlu membuat `STUDENT_ACCESS_CODE` lagi.** Secret lama tersebut boleh dibiarkan dulu dan boleh dihapus setelah versi baru selesai diuji karena kode baru tidak membacanya.
+**Pembaruan terbaru:** login guru memakai `TEACHER_USERNAME` (nama, bukan email), lihat `PANDUAN_UPDATE_LOGIN_GURU.md`. **Tidak perlu membuat `STUDENT_ACCESS_CODE` lagi.** Secret lama tersebut boleh dibiarkan dulu dan boleh dihapus setelah versi baru selesai diuji karena kode baru tidak membacanya.
 
-Login Portal Guru masih membutuhkan **`TEACHER_EMAIL`, `TEACHER_PASSWORD`, `SESSION_SECRET`**, dan binding D1 bernama **`DB`**. Tidak ada password siswa. Rahasia ini disimpan di Cloudflare → Pages → Settings → Variables and secrets, jangan ditulis di GitHub/WA.
+Login Portal Guru masih membutuhkan **`TEACHER_USERNAME`, `TEACHER_PASSWORD`, `SESSION_SECRET`**, dan binding D1 bernama **`DB`**. Tidak ada password siswa. Rahasia ini disimpan di Cloudflare → Pages → Settings → Variables and secrets, jangan ditulis di GitHub/WA.
 
-Jika Portal Guru belum bisa login, periksa email/password yang disimpan sebagai Secret, panjang `SESSION_SECRET` minimal 32 karakter, dan lakukan deployment ulang setelah memperbaruinya. Jangan coba berkali-kali jika login ditolak karena ada pembatasan percobaan.
+Jika Portal Guru belum bisa login, periksa nama guru/password yang disimpan sebagai Secret, panjang `SESSION_SECRET` minimal 32 karakter, dan lakukan deployment ulang setelah memperbaruinya. Jangan coba berkali-kali jika login ditolak karena ada pembatasan percobaan.
 
 ## 4. Buat QR untuk kelas
 
 1. Buka **alamat utama** `https://absenpembelajaranonline.pages.dev`, bukan alamat preview yang diawali kode acak seperti `https://4d00466c....pages.dev`.
-2. Masuk ke **Portal Guru** dengan email dan password Cloudflare.
+2. Masuk ke **Portal Guru** dengan nama guru dan password Cloudflare.
 3. Unggah/tambahkan siswa kelas via tombol **Template & Sinkron Excel** jika daftar masih kosong.
 4. Tekan **Bagikan Link / QR Kelas**.
 5. Pilih kelas, contoh `VII-A`, kemudian klik **Buat Tautan & QR Kelas**.
