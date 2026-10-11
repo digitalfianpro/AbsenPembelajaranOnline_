@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
     <title>Absen Pembelajaran Jarak Jauh - Pendidikan Kewarganegaraan</title>
     
     <!-- Tailwind CSS -->
@@ -88,7 +89,6 @@
             background-color: #ccff00;
             color: #0f172a;
         }
-        [x-cloak] { display: none !important; }
         [x-cloak] { display: none !important; }
     </style>
 </head>
@@ -196,14 +196,10 @@
 
                     <!-- Attendance Form -->
                     <div class="mb-5 p-4 rounded-2xl border border-blue-200 bg-blue-50/60" x-show="!isRosterUnlocked" x-cloak>
-                        <label class="block text-sm font-extrabold text-slate-800 mb-2">Kode Akses Kelas</label>
-                        <p class="text-xs text-slate-600 mb-3">Masukkan kode dari guru untuk menampilkan daftar siswa.</p>
-                        <div class="flex gap-2">
-                            <input type="password" x-model="classroomCode" @keydown.enter.prevent="unlockRoster()" autocomplete="off" placeholder="Kode akses kelas" class="min-w-0 flex-1 px-3 py-3 bg-white border border-blue-200 rounded-xl text-sm font-semibold">
-                            <button type="button" @click="unlockRoster()" :disabled="isUnlockingRoster" class="px-4 py-3 bg-[#0000FF] text-white rounded-xl font-bold text-xs disabled:opacity-50">Buka Daftar</button>
-                        </div>
+                        <p class="text-sm font-extrabold text-slate-800 mb-1">Buka Absensi dari Tautan atau QR Guru</p>
+                        <p class="text-xs text-slate-600">Tidak diperlukan password siswa. Mintalah tautan atau QR kelas kepada guru, lalu buka atau pindai tautan tersebut untuk memilih nama Anda.</p>
                     </div>
-                    <div x-show="isRosterUnlocked && !isTeacherAuthenticated" x-cloak class="mb-4 text-xs text-emerald-800 font-bold">Daftar siswa telah dibuka. Waktu absensi mengikuti WIT (UTC+9).</div>
+                    <div x-show="isRosterUnlocked && !isTeacherAuthenticated" x-cloak class="mb-4 text-xs text-emerald-800 font-bold">Daftar nama kelas Anda sudah tersedia. Presensi mengikuti WIT (UTC+9).</div>
                     <form @submit.prevent="submitAttendance()" class="space-y-4 sm:space-y-5">
                         
                         <!-- 1. Pilih Kelas -->
@@ -348,6 +344,12 @@
                     <button @click="showRosterModal = true" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm rounded-xl shadow-md shadow-emerald-600/20 transition-all flex items-center gap-2">
                         <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
                         <span>Template & Sinkron Excel</span>
+                    </button>
+
+                    <!-- Akses kelas tanpa password: guru membagikan tautan/QR terpisah per kelas -->
+                    <button @click="openShareLinks()" class="px-4 py-2.5 bg-[#ccff00] hover:bg-yellow-300 text-slate-900 font-bold text-xs sm:text-sm rounded-xl shadow-sm transition-all flex items-center gap-2">
+                        <i data-lucide="qr-code" class="w-4 h-4"></i>
+                        <span>Bagikan Link / QR Kelas</span>
                     </button>
 
                     <!-- Export Modal Toggle -->
@@ -712,6 +714,35 @@
         </div>
     </div>
 
+    <!-- MODAL: TEACHER CLASS LINKS & QR (bukan password siswa) -->
+    <div x-show="showShareModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl p-5 sm:p-7 max-w-lg w-full shadow-luxury overflow-y-auto max-h-[92vh]">
+            <div class="flex items-center justify-between mb-4">
+                <div><h3 class="text-lg font-black text-slate-900">Tautan &amp; QR Absensi Kelas</h3>
+                    <p class="text-xs text-slate-500">Bagikan hanya kepada siswa kelas yang tepat.</p></div>
+                <button @click="showShareModal=false" class="p-2 rounded-lg text-slate-500 hover:bg-slate-100" aria-label="Tutup"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <label class="block text-xs font-bold text-slate-700 mb-2" for="shareClass">Pilih kelas</label>
+            <select id="shareClass" x-model="shareClassId" @change="drawShareQR()" class="w-full p-3 border border-slate-200 bg-slate-50 rounded-xl text-sm font-semibold mb-4">
+                <template x-for="cls in classesList" :key="cls.id"><option :value="cls.id" x-text="cls.name"></option></template>
+            </select>
+            <div x-show="!selectedShareLink?.url" class="p-3 mb-4 bg-blue-50 border border-blue-100 rounded-xl text-xs text-slate-700">Belum ada tautan aktif untuk kelas ini. Klik tombol buat tautan untuk mengaktifkan QR.</div>
+            <div x-show="selectedShareLink?.url" x-cloak class="mb-4 text-center">
+                <canvas id="classShareQRCode" class="max-w-full h-auto mx-auto rounded-xl border border-slate-200" role="img" aria-label="QR tautan absensi kelas"></canvas>
+                <p class="text-xs font-semibold text-slate-700 mt-2">Pindai QR di atas, tanpa mengetik password.</p>
+                <p class="text-xs text-slate-500 mt-1" x-text="selectedShareLink?.expiresAt ? 'Berlaku sampai '+new Date(selectedShareLink.expiresAt).toLocaleString('id-ID',{timeZone:'Asia/Jayapura',dateStyle:'medium',timeStyle:'short'})+' WIT' : ''"></p>
+                <input readonly :value="selectedShareLink?.url || ''" aria-label="Tautan absensi kelas" class="mt-3 w-full text-xs rounded-lg border border-slate-200 bg-slate-50 p-2 font-mono" @click="$el.select()">
+                <div class="grid grid-cols-2 gap-2 mt-3">
+                    <button @click="copyShareLink()" class="py-2.5 px-3 rounded-xl bg-[#0000FF] text-white font-bold text-xs"><i data-lucide="copy" class="w-4 h-4 inline"></i> Salin Tautan</button>
+                    <button @click="downloadShareQR()" class="py-2.5 px-3 rounded-xl bg-slate-900 text-white font-bold text-xs"><i data-lucide="download" class="w-4 h-4 inline"></i> Unduh QR (PNG)</button>
+                </div>
+            </div>
+            <button @click="generateShareLink()" :disabled="isShareBusy" class="w-full py-3 bg-emerald-600 text-white rounded-xl font-bold text-sm disabled:opacity-50" x-text="selectedShareLink?.url ? 'Perbarui QR (tautan lama akan mati)' : 'Buat Tautan &amp; QR Kelas'"></button>
+            <button x-show="selectedShareLink?.url" @click="revokeShareLink()" :disabled="isShareBusy" class="mt-2 w-full py-2.5 border border-rose-300 text-rose-700 rounded-xl font-bold text-xs disabled:opacity-50">Nonaktifkan Tautan Kelas</button>
+            <p class="text-xs text-slate-500 mt-4">Tautan berlaku 30 hari dan dapat diganti/dinonaktifkan kapan saja. Siapa pun yang memegang tautan dapat memilih nama pada kelas tersebut; QR bukan verifikasi identitas siswa.</p>
+        </div>
+    </div>
+
     <!-- MODAL 4: ADD STUDENT MANUAL -->
     <div x-show="showAddStudentModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" x-cloak>
         <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-luxury">
@@ -777,357 +808,8 @@
         </div>
     </footer>
 
-    <!-- Application Engine Script: Cloudflare API -->
-    <script>
-// Waktu sekolah sepenuhnya WIT (Asia/Jayapura); tanggal validasi dibuat di server.
-const SCHOOL_TZ = 'Asia/Jayapura';
-function witParts(value = new Date()) {
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return null;
-    return Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
-        timeZone: SCHOOL_TZ, year: 'numeric', month: '2-digit', day: '2-digit'
-    }).formatToParts(date).filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
-}
-function witDateKey(value = new Date()) {
-    const p = witParts(value);
-    return p ? `${p.year}-${p.month}-${p.day}` : '';
-}
-function parseRosterCsvRow(line) {
-    const out = []; let value = ''; let quoted = false;
-    for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') {
-            if (quoted && line[i + 1] === '"') { value += '"'; i++; }
-            else quoted = !quoted;
-        } else if (ch === ',' && !quoted) { out.push(value.trim()); value = ''; }
-        else value += ch;
-    }
-    if (quoted) throw new Error('Tanda petik CSV tidak berpasangan.');
-    out.push(value.trim()); return out;
-}
-function csvSafe(value) {
-    let s = String(value ?? '');
-    if (/^[\s]*[=+\-@]/.test(s)) s = "'" + s;
-    return '"' + s.replace(/"/g, '""') + '"';
-}
-function saveCsv(fileName, rows) {
-    const csv = '\ufeff' + rows.map(row => row.map(csvSafe).join(',')).join('\r\n');
-    const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = fileName;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-}
-function classIdFromCsv(source) {
-    const normalized = source.trim().toUpperCase().replace(/^KELAS\s+/, '').replace(/\s+/g, '');
-    return /^[A-Z0-9-]{2,32}$/.test(normalized) ? normalized : '';
-}
-function attendanceId(dateStr, classId, name) { return `${dateStr}__${classId}__${name.trim()}`; }
-
-function appData() {
-    return {
-        activeTab:'student', isTeacherAuthenticated:false, isTeacherLoginPending:false,
-        showAuthModal:false, showRosterModal:false, showExportModal:false, showAddStudentModal:false,
-        teacherEmail:'', inputPassword:'', showPass:false, authError:false,
-        isSubmitting:false, isCloudConnected:false, connectionError:'',
-        classroomCode:'', isRosterUnlocked:false, isUnlockingRoster:false, isCheckingAttendance:false,
-        checkedAttendance:{key:'',submitted:false,timestamp:null},
-        exportClassId:'ALL', importCSVText:'',
-        currentDateString:'', currentTimeString:'',
-        studentForm:{classId:'',studentName:'',status:'Hadir',notes:''},
-        teacherFilters:{searchQuery:'',classId:'ALL',status:'ALL',date:witDateKey()},
-        newStudent:{classId:'VII-A',name:''},
-        toast:{show:false,title:'',message:'',type:'success'},
-        classesList:[
-            {id:'VII-A',name:'Kelas VII-A'}, {id:'VII-B',name:'Kelas VII-B'},
-            {id:'VIII-A',name:'Kelas VIII-A'}, {id:'VIII-B',name:'Kelas VIII-B'},
-            {id:'IX-A',name:'Kelas IX-A'}, {id:'IX-B',name:'Kelas IX-B'}
-        ],
-        studentsRoster:{}, attendanceRecords:[], _toastTimer:null, _lastWitDate:'',
-        get availableStudents() { return this.studentsRoster[this.studentForm.classId] || []; },
-        get filteredRecords() {
-            return this.attendanceRecords.filter(item => {
-                const matchClass = this.teacherFilters.classId === 'ALL' || item.classId === this.teacherFilters.classId;
-                const matchStatus = this.teacherFilters.status === 'ALL' || item.status === this.teacherFilters.status;
-                const matchSearch = !this.teacherFilters.searchQuery || item.studentName.toLocaleLowerCase('id-ID').includes(this.teacherFilters.searchQuery.toLocaleLowerCase('id-ID'));
-                const matchDate = !this.teacherFilters.date || item.attendanceDate === this.teacherFilters.date;
-                return matchClass && matchStatus && matchSearch && matchDate;
-            });
-        },
-        get stats() {
-            const rows = this.filteredRecords;
-            const hadir=rows.filter(r=>r.status==='Hadir').length;
-            const izin=rows.filter(r=>r.status==='Izin').length;
-            const sakit=rows.filter(r=>r.status==='Sakit').length;
-            return {hadir,izin,sakit,total:rows.length,hadirPercentage:rows.length ? Math.round(100*hadir/rows.length):0};
-        },
-        redrawIcons() { this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); }); },
-        async api(path, options={}) {
-            const headers = {'Accept':'application/json', ...(options.body ? {'Content-Type':'application/json'} : {})};
-            if (this.classroomCode.trim()) headers['X-Classroom-Code'] = this.classroomCode.trim();
-            const response = await fetch('/api'+path, {...options, credentials:'same-origin', cache:'no-store', headers:{...headers,...(options.headers || {})}});
-            let data;
-            try { data = await response.json(); } catch { throw new Error('Server tidak mengembalikan JSON. Periksa pengaturan Cloudflare Pages Functions.'); }
-            if (!response.ok) throw Object.assign(new Error(data.error || `Server HTTP ${response.status}`), {status:response.status});
-            return data;
-        },
-        async initApp() {
-            this.updateTime();
-            setInterval(() => this.updateTime(), 1000);
-            try {
-                await this.api('/health');
-                this.isCloudConnected=true; this.connectionError='';
-                const session=await this.api('/admin/session');
-                if (session.authenticated) {
-                    this.isTeacherAuthenticated=true;
-                    await this.loadRoster(); await this.loadAttendance();
-                }
-            } catch(e) {
-                console.error('Koneksi Cloudflare gagal:',e);
-                this.isCloudConnected=false;
-                this.connectionError='Belum terhubung ke Cloudflare D1. Pastikan binding DB, schema SQL, dan Pages Functions sudah dipasang.';
-            }
-            this.redrawIcons();
-            // Rekap guru diperbarui berkala; absensi siswa dicek server setiap pergantian nama.
-            setInterval(() => { if (this.isTeacherAuthenticated) this.loadAttendance(); }, 60000);
-        },
-        async unlockRoster() {
-            if (this.isUnlockingRoster || !this.classroomCode.trim()) {
-                this.showToast('Kode Diperlukan','Masukkan kode akses kelas dari guru.','error'); return;
-            }
-            this.isUnlockingRoster=true;
-            try {
-                await this.loadRoster();
-                this.isCloudConnected=true; this.connectionError='';
-                this.showToast('Daftar Terbuka','Silakan pilih kelas dan nama Anda.','success');
-            } catch(e) {
-                this.isRosterUnlocked=false;
-                this.classroomCode='';
-                this.showToast('Akses Ditolak', e.message || 'Kode akses tidak benar.','error');
-            } finally {this.isUnlockingRoster=false;}
-        },
-        async loadRoster() {
-            const data=await this.api('/roster');
-            this.classesList=data.classes;
-            this.studentsRoster=data.roster;
-            this.isRosterUnlocked=true;
-            if (!this.classesList.some(c=>c.id===this.newStudent.classId)) this.newStudent.classId=this.classesList[0]?.id || '';
-            if (!this.classesList.some(c=>c.id===this.studentForm.classId)) { this.studentForm.classId=''; this.studentForm.studentName=''; }
-            this.redrawIcons();
-        },
-        async loadAttendance() {
-            if (!this.isTeacherAuthenticated) return;
-            try {
-                const params=this.teacherFilters.date ? '?date='+encodeURIComponent(this.teacherFilters.date) : '';
-                const response=await this.api('/admin/attendance'+params);
-                this.attendanceRecords=response.records;
-                this.redrawIcons();
-            } catch(e) {
-                if (e.status===401) {
-                    this.isTeacherAuthenticated=false; this.attendanceRecords=[]; this.activeTab='student';
-                    this.isRosterUnlocked=false; this.studentsRoster={};
-                }
-                this.showToast('Gagal Memuat Rekap', e.message, 'error');
-            }
-        },
-        async submitAttendance() {
-            if (this.isSubmitting) return;
-            const {classId,studentName,status}=this.studentForm;
-            const notes=this.studentForm.notes.trim();
-            if (!this.isRosterUnlocked || !this.isCloudConnected) {
-                this.showToast('Akses Diperlukan','Buka daftar siswa dengan kode kelas terlebih dahulu.','error'); return;
-            }
-            if (!classId || !studentName || !(this.studentsRoster[classId] || []).includes(studentName)) {
-                this.showToast('Data Tidak Valid','Pilih kelas dan nama yang tercantum dalam daftar siswa.','error'); return;
-            }
-            if (!['Hadir','Izin','Sakit'].includes(status) || notes.length>250) {
-                this.showToast('Data Tidak Valid','Pilih status dan catatan maksimal 250 karakter.','error'); return;
-            }
-            this.isSubmitting=true;
-            try {
-                const result=await this.api('/attendance',{method:'POST',body:JSON.stringify({classId,studentName,status,notes})});
-                this.checkedAttendance={key:attendanceId(witDateKey(),classId,studentName),submitted:true,timestamp:result.timestamp};
-                this.studentForm.studentName=''; this.studentForm.status='Hadir'; this.studentForm.notes='';
-                this.showToast('Absensi Berhasil','Presensi tersimpan di database Cloudflare D1.','success');
-            } catch(e) {
-                if (e.status===409) await this.checkDuplicateAttendance();
-                this.showToast('Absensi Tidak Tersimpan',e.message || 'Periksa koneksi internet.','error');
-            } finally {this.isSubmitting=false;}
-        },
-        async deleteRecord(id) {
-            if (!this.isTeacherAuthenticated || !window.confirm('Hapus data absensi ini secara permanen?')) return;
-            try {
-                await this.api('/admin/attendance?id='+encodeURIComponent(id),{method:'DELETE'});
-                await this.loadAttendance();
-                this.showToast('Data Dihapus','Data presensi sudah dihapus.','success');
-            } catch(e) {this.showToast('Gagal Menghapus',e.message,'error');}
-        },
-        async saveRosterToCloud(specificClassId=null,rosterOverride=null) {
-            if (!this.isTeacherAuthenticated) throw new Error('Hanya guru yang dapat mengubah daftar siswa.');
-            const roster=rosterOverride || this.studentsRoster;
-            const keys=specificClassId ? [specificClassId] : Object.keys(roster);
-            const entries=keys.flatMap(classId => (roster[classId] || []).map(name=>({classId,name})));
-            // Kirim bertahap agar setiap request tetap kecil dan menghindari limit D1 batch.
-            for (let i=0;i<entries.length;i+=200) {
-                await this.api('/admin/students',{method:'POST',body:JSON.stringify({entries:entries.slice(i,i+200)})});
-            }
-            await this.loadRoster();
-        },
-        async addNewStudent() {
-            if (!this.isTeacherAuthenticated) return;
-            const name=this.newStudent.name.trim(); const classId=this.newStudent.classId;
-            if (!name || name.length>100 || !this.classesList.some(c=>c.id===classId)) {
-                this.showToast('Data Tidak Valid','Pilih kelas dan isi nama maksimal 100 karakter.','error'); return;
-            }
-            if ((this.studentsRoster[classId] || []).some(n=>n.toLocaleLowerCase('id-ID')===name.toLocaleLowerCase('id-ID'))) {
-                this.showToast('Nama Sudah Ada','Nama itu sudah ada dalam kelas ini.','error'); return;
-            }
-            try {
-                await this.api('/admin/students',{method:'POST',body:JSON.stringify({entries:[{classId,name}]})});
-                await this.loadRoster();
-                this.newStudent.name=''; this.showAddStudentModal=false;
-                this.showToast('Siswa Ditambahkan','Nama siswa tersimpan di Cloudflare D1.','success');
-            } catch(e) {this.showToast('Gagal Menambah',e.message,'error');}
-        },
-        async importRosterFromCSV() {
-            if (!this.isTeacherAuthenticated || !this.importCSVText.trim()) {
-                this.showToast('CSV Kosong','Masukkan daftar siswa terlebih dahulu.','error'); return;
-            }
-            const draft=Object.fromEntries(Object.entries(this.studentsRoster).map(([id,names])=>[id,[...names]]));
-            let count=0;
-            try {
-                const lines=this.importCSVText.replace(/^\ufeff/,'').split(/\r?\n/);
-                for (const line of lines) {
-                    if (!line.trim()) continue;
-                    const cells=parseRosterCsvRow(line);
-                    if (cells.length!==2) throw new Error('CSV harus memiliki dua kolom: Kelas, Nama Murid.');
-                    const [rawClass,rawName]=cells;
-                    if (/^kelas$/i.test(rawClass) && /^nama murid$/i.test(rawName)) continue;
-                    const classId=classIdFromCsv(rawClass), name=rawName.trim();
-                    if (!classId || !name || name.length>100) throw new Error('Baris CSV tidak valid: '+line.slice(0,60));
-                    if (!draft[classId]) draft[classId]=[];
-                    if (!draft[classId].some(n=>n.toLocaleLowerCase('id-ID')===name.toLocaleLowerCase('id-ID'))) {
-                        draft[classId].push(name); count++;
-                    }
-                }
-                if (!count) throw new Error('Semua siswa sudah ada atau CSV kosong.');
-                await this.saveRosterToCloud(null,draft);
-                this.importCSVText=''; this.showRosterModal=false;
-                this.showToast('Impor Berhasil',`${count} siswa baru dikirim ke Cloudflare D1.`,'success');
-            } catch(e) {this.showToast('Impor Gagal',e.message,'error');}
-        },
-        updateTime() {
-            const now=new Date();
-            this.currentDateString=new Intl.DateTimeFormat('id-ID',{timeZone:SCHOOL_TZ,weekday:'long',year:'numeric',month:'long',day:'numeric'}).format(now);
-            this.currentTimeString=new Intl.DateTimeFormat('id-ID',{timeZone:SCHOOL_TZ,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(now)+' WIT';
-            const today=witDateKey(now);
-            if (!this._lastWitDate) this._lastWitDate=today;
-            if (today!==this._lastWitDate) {
-                this._lastWitDate=today; this.teacherFilters.date=today;
-                this.checkedAttendance={key:'',submitted:false,timestamp:null};
-                if (this.isTeacherAuthenticated) this.loadAttendance();
-            }
-        },
-        switchTab(tab) {
-            if (tab==='teacher' && !this.isTeacherAuthenticated) {this.openTeacherAuthModal();return;}
-            this.activeTab=tab; this.redrawIcons();
-        },
-        openTeacherAuthModal() {
-            if (this.isTeacherAuthenticated) {this.switchTab('teacher');return;}
-            this.inputPassword=''; this.authError=false; this.showAuthModal=true; this.redrawIcons();
-        },
-        async verifyTeacherPassword() {
-            if (this.isTeacherLoginPending) return;
-            if (!this.teacherEmail.trim() || !this.inputPassword) {this.authError=true;return;}
-            this.isTeacherLoginPending=true;
-            try {
-                await this.api('/admin/login',{method:'POST',body:JSON.stringify({email:this.teacherEmail.trim(),password:this.inputPassword})});
-                this.isTeacherAuthenticated=true; this.authError=false; this.inputPassword='';
-                this.showAuthModal=false; this.activeTab='teacher';
-                await this.loadRoster(); await this.loadAttendance();
-                this.showToast('Login Berhasil','Selamat datang di Portal Guru.','success');
-            } catch(e) {
-                console.error('Login guru:',e);
-                this.authError=true; this.isTeacherAuthenticated=false;
-                this.showToast('Login Gagal',e.message,'error');
-            } finally {this.isTeacherLoginPending=false;}
-        },
-        async logoutTeacher() {
-            try {await this.api('/admin/logout',{method:'POST'});} catch(e) {console.error(e);}
-            this.isTeacherAuthenticated=false; this.attendanceRecords=[];
-            this.isRosterUnlocked=false; this.studentsRoster={}; this.classroomCode='';
-            this.studentForm.studentName=''; this.checkedAttendance={key:'',submitted:false,timestamp:null};
-            this.activeTab='student'; this.showToast('Keluar Portal','Sesi guru sudah ditutup.','success');
-        },
-        onClassChange() {
-            this.studentForm.studentName=''; this.checkedAttendance={key:'',submitted:false,timestamp:null};
-        },
-        checkAlreadySubmitted(name) {
-            if (!name || !this.studentForm.classId) return false;
-            return this.checkedAttendance.key===attendanceId(witDateKey(),this.studentForm.classId,name) && this.checkedAttendance.submitted;
-        },
-        getStudentTodayRecord(name) {
-            if (this.checkAlreadySubmitted(name)) return {timestamp:this.checkedAttendance.timestamp};
-            return null;
-        },
-        async checkDuplicateAttendance() {
-            const name=this.studentForm.studentName;
-            const classId=this.studentForm.classId;
-            this.checkedAttendance={key:'',submitted:false,timestamp:null};
-            if (!this.isRosterUnlocked || !name || !classId) return;
-            const key=attendanceId(witDateKey(),classId,name);
-            this.isCheckingAttendance=true;
-            try {
-                const result=await this.api('/check?classId='+encodeURIComponent(classId)+'&studentName='+encodeURIComponent(name));
-                if (this.studentForm.studentName===name && this.studentForm.classId===classId && key.startsWith(witDateKey())) {
-                    this.checkedAttendance={key,submitted:result.submitted,timestamp:result.timestamp};
-                }
-            } catch(e) {this.showToast('Pemeriksaan Gagal',e.message,'error');}
-            finally {this.isCheckingAttendance=false;this.redrawIcons();}
-        },
-        downloadExcelTemplate() {
-            saveCsv('Template_Roster_SMPN6.csv',[
-                ['Kelas','Nama Murid'],['Kelas VII-A','Contoh Siswa Satu'],
-                ['Kelas VII-A','Contoh Siswa Dua'],['Kelas VIII-B','Contoh Siswa Tiga']
-            ]);
-            this.showToast('Template Siap','File CSV template dibuat.','success');
-        },
-        exportClassExcel() {
-            if (!this.isTeacherAuthenticated) return;
-            const selectedClass=this.exportClassId;
-            const filtered=this.attendanceRecords.filter(r=>(selectedClass==='ALL'||r.classId===selectedClass)&&
-                (!this.teacherFilters.date||r.attendanceDate===this.teacherFilters.date));
-            if (!filtered.length) {this.showToast('Tidak Ada Data','Tidak ada absensi pada tanggal yang dipilih.','error');return;}
-            const rows=[['No','Hari','Tanggal','Bulan','Tahun','Jam (WIT)','Nama Murid','Kelas','Status Kehadiran','Catatan']];
-            filtered.forEach((r,i)=>{
-                const d=new Date(r.timestamp);
-                const parts=Object.fromEntries(new Intl.DateTimeFormat('id-ID',{
-                    timeZone:SCHOOL_TZ,weekday:'long',day:'numeric',month:'long',year:'numeric'
-                }).formatToParts(d).filter(p=>p.type!=='literal').map(p=>[p.type,p.value]));
-                const time=new Intl.DateTimeFormat('id-ID',{
-                    timeZone:SCHOOL_TZ,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false
-                }).format(d);
-                rows.push([i+1,parts.weekday,parts.day,parts.month,parts.year,time,r.studentName,this.getClassName(r.classId),r.status,r.notes||'-']);
-            });
-            const date=this.teacherFilters.date||'semua-tanggal';
-            saveCsv(`Rekap_Absen_PKn_${selectedClass}_${date}.csv`,rows);
-            this.showExportModal=false; this.showToast('Ekspor Berhasil','Rekap CSV sudah dibuat.','success');
-        },
-        getClassName(classId) {return this.classesList.find(c=>c.id===classId)?.name||classId;},
-        formatTime(value) {
-            if (!value) return '-';
-            const d=new Date(value);
-            return Number.isNaN(d.getTime())?'-':new Intl.DateTimeFormat('id-ID',{
-                timeZone:SCHOOL_TZ,hour:'2-digit',minute:'2-digit',hour12:false
-            }).format(d)+' WIT';
-        },
-        showToast(title,message,type='success') {
-            this.toast={show:true,title,message,type}; this.redrawIcons();
-            if (this._toastTimer) clearTimeout(this._toastTimer);
-            this._toastTimer=setTimeout(()=>{this.toast.show=false;},4000);
-        }
-    };
-}
-    </script>
+    <!-- Modul QR lokal dan engine frontend (tanpa Firebase). -->
+    <script src="/qr.js"></script>
+    <script src="/app.js"></script>
 </body>
 </html>

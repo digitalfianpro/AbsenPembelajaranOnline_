@@ -3,6 +3,7 @@
 const WIT_ZONE = 'Asia/Jayapura';
 const COOKIE = '__Host-smp6_teacher';
 const EIGHT_HOURS = 8 * 60 * 60;
+const STUDENT_LINK_DAYS = 30;
 const textEncoder = new TextEncoder();
 
 function dateWit(d = new Date()) {
@@ -61,12 +62,34 @@ async function isTeacher(request, env) {
 function cookieHeader(token, maxAge = EIGHT_HOURS) {
   return `${COOKIE}=${token}; Path=/; Max-Age=${maxAge}; Secure; HttpOnly; SameSite=Strict`;
 }
-async function studentCanAccess(request, env) {
-  // Daftar nama siswa tidak dibuka ke pengunjung tanpa kode akses sekolah.
-  if (await isTeacher(request, env)) return true;
-  const provided = request.headers.get('X-Classroom-Code') || '';
-  if (!env.STUDENT_ACCESS_CODE || provided.length > 128 || !provided) return false;
-  return constantTimeEqual(await sha256(provided), await sha256(env.STUDENT_ACCESS_CODE));
+async function studentScope(request, env) {
+  // Tautan merupakan bearer token. Hanya berlaku untuk kelasnya sendiri.
+  if (await isTeacher(request, env)) return '*';
+  const provided = request.headers.get('X-Student-Link') || '';
+  if (provided.length > 160) return null;
+  // Token ringkas agar QR mudah dipindai; tanda tangan 128-bit dari HMAC SHA-256.
+  const match = /^v1\.([A-Za-z0-9_-]{22})\.([A-Za-z0-9_-]{22})$/.exec(provided);
+  if (!match || !env.SESSION_SECRET || env.SESSION_SECRET.length < 32) return null;
+  const record = await env.DB.prepare('SELECT class_id,nonce,expires_at FROM class_access WHERE nonce=?').bind(match[1]).first();
+  if (!record || record.expires_at <= Math.floor(Date.now()/1000)) return null;
+  const sig = base64url((await hmac(env.SESSION_SECRET, `student-class-link:v1.${record.class_id}.${record.nonce}.${record.expires_at}`)).slice(0,16));
+  if (!constantTimeEqual(textEncoder.encode(match[2]), textEncoder.encode(sig))) return null;
+  return record.class_id;
+}
+async function getTeacherLinks(request, env) {
+  const rows = await env.DB.prepare('SELECT c.id,c.name,a.nonce,a.expires_at FROM classes c LEFT JOIN class_access a ON a.class_id=c.id ORDER BY c.id').all();
+  const origin = new URL(request.url).origin;
+  const now = Math.floor(Date.now()/1000);
+  const links = [];
+  for (const r of rows.results) {
+    let url = null;
+    if (r.nonce && r.expires_at > now) {
+      const sig = base64url((await hmac(env.SESSION_SECRET, `student-class-link:v1.${r.id}.${r.nonce}.${r.expires_at}`)).slice(0,16));
+      url = `${origin}/?access=${encodeURIComponent(`v1.${r.nonce}.${sig}`)}`;
+    }
+    links.push({classId:r.id, className:r.name, url, expiresAt:url ? new Date(r.expires_at*1000).toISOString() : null});
+  }
+  return links;
 }
 async function bodyJson(request) {
   if (!(request.headers.get('Content-Type') || '').toLowerCase().startsWith('application/json')) throw new Error('Kirim data dalam format JSON.');
@@ -119,19 +142,24 @@ export async function onRequest({request, env, params}) {
     }
 
     if (path === '/roster' && method === 'GET') {
-      if (!await studentCanAccess(request, env)) return error(403, 'Masukkan kode akses kelas yang benar.');
-      const classes = await env.DB.prepare("SELECT id,name FROM classes ORDER BY CASE WHEN id LIKE 'VII-%' THEN 1 WHEN id LIKE 'VIII-%' THEN 2 WHEN id LIKE 'IX-%' THEN 3 ELSE 4 END, id").all();
-      const students = await env.DB.prepare('SELECT class_id AS classId,name FROM students ORDER BY name').all();
+      const scope = await studentScope(request, env);
+      if (!scope) return error(403, 'Buka halaman dari tautan/QR yang dibagikan guru.');
+      const classesQuery = "SELECT id,name FROM classes" + (scope==='*' ? " ORDER BY CASE WHEN id LIKE 'VII-%' THEN 1 WHEN id LIKE 'VIII-%' THEN 2 WHEN id LIKE 'IX-%' THEN 3 ELSE 4 END, id" : ' WHERE id=?');
+      const classes = await (scope==='*' ? env.DB.prepare(classesQuery) : env.DB.prepare(classesQuery).bind(scope)).all();
+      const studentsQuery = 'SELECT class_id AS classId,name FROM students' + (scope==='*' ? ' ORDER BY name' : ' WHERE class_id=? ORDER BY name');
+      const students = await (scope==='*' ? env.DB.prepare(studentsQuery) : env.DB.prepare(studentsQuery).bind(scope)).all();
       const roster = {};
       for (const cls of classes.results) roster[cls.id] = [];
       for (const student of students.results) (roster[student.classId] ||= []).push(student.name);
       return json({classes: classes.results, roster});
     }
     if (path === '/check' && method === 'GET') {
-      if (!await studentCanAccess(request, env)) return error(403, 'Kode akses kelas tidak benar.');
+      const scope = await studentScope(request, env);
+      if (!scope) return error(403, 'Tautan kelas tidak berlaku. Minta tautan baru kepada guru.');
       const url = new URL(request.url);
       const classId = url.searchParams.get('classId') || '';
       const studentName = url.searchParams.get('studentName') || '';
+      if (scope !== '*' && scope !== classId) return error(403, 'Tautan tidak berlaku untuk kelas ini.');
       if (!validClassId(classId) || !validName(studentName)) return error(400, 'Data siswa tidak valid.');
       const rec = await env.DB.prepare(`SELECT a.created_at AS timestamp
         FROM attendance a JOIN students s ON s.id = a.student_id
@@ -140,8 +168,10 @@ export async function onRequest({request, env, params}) {
       return json({submitted: !!rec, timestamp: rec?.timestamp || null});
     }
     if (path === '/attendance' && method === 'POST') {
-      if (!await studentCanAccess(request, env)) return error(403, 'Kode akses kelas tidak benar.');
+      const scope = await studentScope(request, env);
+      if (!scope) return error(403, 'Tautan kelas tidak berlaku. Minta tautan baru kepada guru.');
       const b = await bodyJson(request);
+      if (scope !== '*' && scope !== b.classId) return error(403, 'Tautan tidak berlaku untuk kelas ini.');
       if (!validClassId(b.classId) || !validName(b.studentName) || !['Hadir','Izin','Sakit'].includes(b.status) || typeof b.notes !== 'string' || b.notes.length > 250) return error(400, 'Data absensi tidak valid.');
       const student = await env.DB.prepare('SELECT id FROM students WHERE class_id=? AND name_key=?').bind(b.classId, normalizeName(b.studentName)).first();
       if (!student) return error(400, 'Nama tidak terdaftar di kelas ini.');
@@ -156,6 +186,26 @@ export async function onRequest({request, env, params}) {
 
     if (path.startsWith('/admin/')) {
       if (!await isTeacher(request, env)) return error(401, 'Silakan masuk sebagai guru terlebih dahulu.');
+      if (path === '/admin/links' && method === 'GET') {
+        if (!env.SESSION_SECRET || env.SESSION_SECRET.length < 32) return error(503,'SESSION_SECRET belum dikonfigurasi.');
+        return json({links:await getTeacherLinks(request,env)});
+      }
+      if (path === '/admin/links' && method === 'POST') {
+        const b = await bodyJson(request);
+        if (!validClassId(b.classId)) return error(400, 'Kelas tidak valid.');
+        const cls = await env.DB.prepare('SELECT id FROM classes WHERE id=?').bind(b.classId).first();
+        if (!cls) return error(404,'Kelas tidak ditemukan.');
+        const nonce = base64url(crypto.getRandomValues(new Uint8Array(16)));
+        const exp = Math.floor(Date.now()/1000)+ STUDENT_LINK_DAYS*24*60*60;
+        await env.DB.prepare('INSERT INTO class_access(class_id,nonce,expires_at) VALUES(?,?,?) ON CONFLICT(class_id) DO UPDATE SET nonce=excluded.nonce,expires_at=excluded.expires_at').bind(b.classId,nonce,exp).run();
+        return json({links:await getTeacherLinks(request,env)});
+      }
+      if (path === '/admin/links' && method === 'DELETE') {
+        const classId=new URL(request.url).searchParams.get('classId');
+        if (!validClassId(classId)) return error(400, 'Kelas tidak valid.');
+        await env.DB.prepare('DELETE FROM class_access WHERE class_id=?').bind(classId).run();
+        return json({links:await getTeacherLinks(request,env)});
+      }
       if (path === '/admin/attendance' && method === 'GET') {
         const date = new URL(request.url).searchParams.get('date');
         if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return error(400, 'Format tanggal salah.');

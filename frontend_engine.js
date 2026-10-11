@@ -47,9 +47,10 @@ function appData() {
     return {
         activeTab:'student', isTeacherAuthenticated:false, isTeacherLoginPending:false,
         showAuthModal:false, showRosterModal:false, showExportModal:false, showAddStudentModal:false,
+        showShareModal:false, shareClassId:'VII-A', shareLinks:[], isShareBusy:false,
         teacherEmail:'', inputPassword:'', showPass:false, authError:false,
         isSubmitting:false, isCloudConnected:false, connectionError:'',
-        classroomCode:'', isRosterUnlocked:false, isUnlockingRoster:false, isCheckingAttendance:false,
+        studentLink:'', isRosterUnlocked:false, isCheckingAttendance:false,
         checkedAttendance:{key:'',submitted:false,timestamp:null},
         exportClassId:'ALL', importCSVText:'',
         currentDateString:'', currentTimeString:'',
@@ -83,7 +84,7 @@ function appData() {
         redrawIcons() { this.$nextTick(() => { if (window.lucide) window.lucide.createIcons(); }); },
         async api(path, options={}) {
             const headers = {'Accept':'application/json', ...(options.body ? {'Content-Type':'application/json'} : {})};
-            if (this.classroomCode.trim()) headers['X-Classroom-Code'] = this.classroomCode.trim();
+            if (this.studentLink) headers['X-Student-Link'] = this.studentLink;
             const response = await fetch('/api'+path, {...options, credentials:'same-origin', cache:'no-store', headers:{...headers,...(options.headers || {})}});
             let data;
             try { data = await response.json(); } catch { throw new Error('Server tidak mengembalikan JSON. Periksa pengaturan Cloudflare Pages Functions.'); }
@@ -93,6 +94,18 @@ function appData() {
         async initApp() {
             this.updateTime();
             setInterval(() => this.updateTime(), 1000);
+            // Tautan kelas dari QR diterima satu kali, lalu dihilangkan dari address bar
+            // agar tidak ikut tersebar ketika siswa menyalin URL halaman.
+            const url = new URL(window.location.href);
+            const incomingLink = url.searchParams.get('access');
+            if (incomingLink) {
+                this.studentLink=incomingLink;
+                sessionStorage.setItem('smp6_class_link', incomingLink);
+                url.searchParams.delete('access');
+                window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+            } else {
+                this.studentLink=sessionStorage.getItem('smp6_class_link') || '';
+            }
             try {
                 await this.api('/health');
                 this.isCloudConnected=true; this.connectionError='';
@@ -100,6 +113,13 @@ function appData() {
                 if (session.authenticated) {
                     this.isTeacherAuthenticated=true;
                     await this.loadRoster(); await this.loadAttendance();
+                } else if (this.studentLink) {
+                    try { await this.loadRoster(); }
+                    catch(e) {
+                        this.studentLink=''; sessionStorage.removeItem('smp6_class_link');
+                        this.isRosterUnlocked=false;
+                        this.connectionError='Tautan kelas tidak berlaku atau sudah kedaluwarsa. Minta tautan/QR baru dari guru.';
+                    }
                 }
             } catch(e) {
                 console.error('Koneksi Cloudflare gagal:',e);
@@ -110,26 +130,12 @@ function appData() {
             // Rekap guru diperbarui berkala; absensi siswa dicek server setiap pergantian nama.
             setInterval(() => { if (this.isTeacherAuthenticated) this.loadAttendance(); }, 60000);
         },
-        async unlockRoster() {
-            if (this.isUnlockingRoster || !this.classroomCode.trim()) {
-                this.showToast('Kode Diperlukan','Masukkan kode akses kelas dari guru.','error'); return;
-            }
-            this.isUnlockingRoster=true;
-            try {
-                await this.loadRoster();
-                this.isCloudConnected=true; this.connectionError='';
-                this.showToast('Daftar Terbuka','Silakan pilih kelas dan nama Anda.','success');
-            } catch(e) {
-                this.isRosterUnlocked=false;
-                this.classroomCode='';
-                this.showToast('Akses Ditolak', e.message || 'Kode akses tidak benar.','error');
-            } finally {this.isUnlockingRoster=false;}
-        },
         async loadRoster() {
             const data=await this.api('/roster');
             this.classesList=data.classes;
             this.studentsRoster=data.roster;
             this.isRosterUnlocked=true;
+            if (!this.isTeacherAuthenticated && data.classes.length===1) this.studentForm.classId=data.classes[0].id;
             if (!this.classesList.some(c=>c.id===this.newStudent.classId)) this.newStudent.classId=this.classesList[0]?.id || '';
             if (!this.classesList.some(c=>c.id===this.studentForm.classId)) { this.studentForm.classId=''; this.studentForm.studentName=''; }
             this.redrawIcons();
@@ -149,12 +155,72 @@ function appData() {
                 this.showToast('Gagal Memuat Rekap', e.message, 'error');
             }
         },
+        get selectedShareLink() { return this.shareLinks.find(x=>x.classId===this.shareClassId) || null; },
+        async openShareLinks() {
+            if (!this.isTeacherAuthenticated) return;
+            this.showShareModal=true;
+            this.shareClassId=this.classesList[0]?.id || 'VII-A';
+            await this.loadShareLinks();
+        },
+        async loadShareLinks() {
+            try {
+                const data=await this.api('/admin/links');
+                this.shareLinks=data.links;
+                this.drawShareQR();
+            } catch(e) {this.showToast('Gagal Memuat Tautan',e.message,'error');}
+        },
+        drawShareQR() {
+            this.$nextTick(()=>{
+                const canvas=document.getElementById('classShareQRCode');
+                if (!canvas) return;
+                const link=this.selectedShareLink?.url;
+                if (!link || !window.SMP6QR) {
+                    canvas.hidden=true;
+                    return;
+                }
+                try {window.SMP6QR.draw(canvas,link);canvas.hidden=false;}
+                catch(e) {canvas.hidden=true;this.showToast('QR Gagal Dibuat',e.message,'error');}
+            });
+        },
+        async generateShareLink() {
+            if (!this.isTeacherAuthenticated || !this.shareClassId || this.isShareBusy) return;
+            if (this.selectedShareLink?.url && !window.confirm('Ganti tautan kelas? QR yang sudah dibagikan akan berhenti berlaku.')) return;
+            this.isShareBusy=true;
+            try {
+                const data=await this.api('/admin/links',{method:'POST',body:JSON.stringify({classId:this.shareClassId})});
+                this.shareLinks=data.links;this.drawShareQR();
+                this.showToast('Tautan Siap','Salin tautan atau bagikan gambar QR kepada kelas ini.','success');
+            } catch(e) {this.showToast('Gagal Membuat Tautan',e.message,'error');}
+            finally {this.isShareBusy=false;}
+        },
+        async revokeShareLink() {
+            if (!this.selectedShareLink?.url || this.isShareBusy) return;
+            if (!window.confirm('Nonaktifkan tautan/QR kelas ini? Siswa yang memakai tautan lama tidak dapat mengisi absen.')) return;
+            this.isShareBusy=true;
+            try {
+                const data=await this.api('/admin/links?classId='+encodeURIComponent(this.shareClassId),{method:'DELETE'});
+                this.shareLinks=data.links;this.drawShareQR();
+                this.showToast('Tautan Dinonaktifkan','Tautan lama sudah tidak berlaku.','success');
+            } catch(e) {this.showToast('Gagal Menonaktifkan',e.message,'error');}
+            finally {this.isShareBusy=false;}
+        },
+        async copyShareLink() {
+            if (!this.selectedShareLink?.url) return;
+            try {await navigator.clipboard.writeText(this.selectedShareLink.url);this.showToast('Tautan Disalin','Bagikan hanya melalui grup kelas yang sesuai.','success');}
+            catch(e) {this.showToast('Gagal Menyalin','Salin tautan secara manual dari kotak.','error');}
+        },
+        downloadShareQR() {
+            const canvas=document.getElementById('classShareQRCode');
+            if (!this.selectedShareLink?.url || !canvas || canvas.hidden) return;
+            const a=document.createElement('a');a.href=canvas.toDataURL('image/png');a.download=`QR_Absensi_${this.shareClassId}.png`;
+            document.body.appendChild(a);a.click();a.remove();
+        },
         async submitAttendance() {
             if (this.isSubmitting) return;
             const {classId,studentName,status}=this.studentForm;
             const notes=this.studentForm.notes.trim();
             if (!this.isRosterUnlocked || !this.isCloudConnected) {
-                this.showToast('Akses Diperlukan','Buka daftar siswa dengan kode kelas terlebih dahulu.','error'); return;
+                this.showToast('Akses Diperlukan','Buka absensi melalui tautan/QR dari guru terlebih dahulu.','error'); return;
             }
             if (!classId || !studentName || !(this.studentsRoster[classId] || []).includes(studentName)) {
                 this.showToast('Data Tidak Valid','Pilih kelas dan nama yang tercantum dalam daftar siswa.','error'); return;
@@ -274,7 +340,8 @@ function appData() {
         async logoutTeacher() {
             try {await this.api('/admin/logout',{method:'POST'});} catch(e) {console.error(e);}
             this.isTeacherAuthenticated=false; this.attendanceRecords=[];
-            this.isRosterUnlocked=false; this.studentsRoster={}; this.classroomCode='';
+            this.isRosterUnlocked=false; this.studentsRoster={}; this.studentLink='';sessionStorage.removeItem('smp6_class_link');
+            this.showShareModal=false;this.shareLinks=[];
             this.studentForm.studentName=''; this.checkedAttendance={key:'',submitted:false,timestamp:null};
             this.activeTab='student'; this.showToast('Keluar Portal','Sesi guru sudah ditutup.','success');
         },

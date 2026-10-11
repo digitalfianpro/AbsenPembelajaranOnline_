@@ -32,3 +32,10 @@ INSERT OR IGNORE INTO classes(id,name) VALUES
   ('VII-A', 'Kelas VII-A'), ('VII-B', 'Kelas VII-B'),
   ('VIII-A', 'Kelas VIII-A'), ('VIII-B', 'Kelas VIII-B'),
   ('IX-A', 'Kelas IX-A'), ('IX-B', 'Kelas IX-B');
+
+-- Tautan rahasia per kelas untuk QR (versi baru, aman juga untuk database yang sudah ada).
+CREATE TABLE IF NOT EXISTS class_access (
+  class_id TEXT PRIMARY KEY REFERENCES classes(id),
+  nonce TEXT NOT NULL,
+  expires_at INTEGER NOT NULL
+);

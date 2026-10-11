@@ -1,9 +1,11 @@
-# Absensi PJJ PKn — SMP Negeri 6 Manokwari
+# Absensi PJJ PKn — SMP Negeri 6 Manokwari (Cloudflare + QR)
 
-Aplikasi berbasis **Cloudflare Pages + Pages Functions + D1**, tanpa Firebase.
+Tanpa Firebase. Frontend **Cloudflare Pages**, API **Pages Functions**, penyimpanan **Cloudflare D1**, waktu **WIT (Asia/Jayapura)**.
 
-- **Portal Murid**: kode akses kelas, pilih siswa, Hadir/Izin/Sakit, sekali sehari berdasarkan **WIT**.
-- **Portal Guru**: login server-side, tambah/impor roster, filter dan hapus absensi, ekspor CSV.
-- **Zona waktu**: `Asia/Jayapura` (UTC+09:00). Penentuan tanggal absensi oleh server.
+- **Portal Murid**: buka link / pindai QR per kelas dari guru, tanpa mengetik password; pilih nama dan Hadir/Izin/Sakit, maksimal 1 kali per hari WIT.
+- **Portal Guru**: login email/password di server, impor/tambah siswa, kelola tautan QR kelas (30 hari, dapat diganti/dinonaktifkan), rekap dan ekspor CSV.
+- QR dibuat **langsung di browser**, tanpa layanan QR eksternal. Akses link berlaku hanya untuk kelas masing-masing. Ini **bukan** verifikasi identitas: siapa pun yang punya link dapat memilih nama siswa di kelas itu.
 
-> Agar data tersimpan online, unggah **seluruh struktur repositori** dan lakukan konfigurasi D1 + Secrets. **Baca [PANDUAN_CLOUDFLARE.md](PANDUAN_CLOUDFLARE.md)**.
+**Sudah memiliki D1 dan Pages aktif?** Buka [PANDUAN_UPDATE_QR.md](PANDUAN_UPDATE_QR.md). Anda hanya perlu menjalankan `MIGRASI_D1_QR.sql` dan mengunggah update ke repositori GitHub; jangan buat database baru.
+
+**Mulai dari nol?** Lihat [PANDUAN_CLOUDFLARE.md](PANDUAN_CLOUDFLARE.md), jalankan `schema.sql` penuh pada database baru.
