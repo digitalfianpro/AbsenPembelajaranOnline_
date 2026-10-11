@@ -94,8 +94,6 @@ function appData() {
         async initApp() {
             this.updateTime();
             setInterval(() => this.updateTime(), 1000);
-            // Tautan kelas dari QR diterima satu kali, lalu dihilangkan dari address bar
-            // agar tidak ikut tersebar ketika siswa menyalin URL halaman.
             const url = new URL(window.location.href);
             const incomingLink = url.searchParams.get('access');
             if (incomingLink) {
@@ -127,7 +125,6 @@ function appData() {
                 this.connectionError='Belum terhubung ke Cloudflare D1. Pastikan binding DB, schema SQL, dan Pages Functions sudah dipasang.';
             }
             this.redrawIcons();
-            // Rekap guru diperbarui berkala; absensi siswa dicek server setiap pergantian nama.
             setInterval(() => { if (this.isTeacherAuthenticated) this.loadAttendance(); }, 60000);
         },
         async loadRoster() {
@@ -252,7 +249,6 @@ function appData() {
             const roster=rosterOverride || this.studentsRoster;
             const keys=specificClassId ? [specificClassId] : Object.keys(roster);
             const entries=keys.flatMap(classId => (roster[classId] || []).map(name=>({classId,name})));
-            // Kirim bertahap agar setiap request tetap kecil dan menghindari limit D1 batch.
             for (let i=0;i<entries.length;i+=200) {
                 await this.api('/admin/students',{method:'POST',body:JSON.stringify({entries:entries.slice(i,i+200)})});
             }
@@ -323,7 +319,7 @@ function appData() {
         },
         async verifyTeacherPassword() {
             if (this.isTeacherLoginPending) return;
-            if (!this.teacherUsername.trim() || !this.inputPassword) {this.authError=true;return;}
+            if (!this.teacherUsername.trim()) {this.authError=true;return;}
             this.isTeacherLoginPending=true;
             try {
                 await this.api('/admin/login',{method:'POST',body:JSON.stringify({username:this.teacherUsername.trim(),password:this.inputPassword})});
